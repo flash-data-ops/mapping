@@ -549,7 +549,7 @@
                             <strong>Object ID:</strong> ${event.feature.getProperty("object") || "N/A"}
                         </div>
                         <div class="info-row">
-                            <strong>Route:</strong> ${event.feature.getProperty("area") || "N/A"}
+                            <strong>Mobile Payment Zone:</strong> ${event.feature.getProperty("area") || "N/A"}
                         </div>
                         <div class="info-row">
                             <strong>Position:</strong> ${event.latLng.toUrlValue(6)}
@@ -648,7 +648,7 @@
                             <strong>Object ID:</strong> ${feature.getProperty("object")}
                         </div>
                         <div class="info-row">
-                            <strong>Route:</strong> ${feature.getProperty("area") || "N/A"}
+                            <strong>Mobile Payment Zone:</strong> ${feature.getProperty("area") || "N/A"}
                         </div>
                     </div>`;
                 infoWindow.setContent(content);

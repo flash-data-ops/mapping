@@ -35,7 +35,7 @@ function initMap() {
   mainMap.data.addListener("click", (event) => {
     const content = `
       <div>Object ID: ${event.feature.getProperty("object")}</div>
-      <div>Route: ${event.feature.getProperty("area")}</div>`;
+      <div>Mobile Payment Zone: ${event.feature.getProperty("area")}</div>`;
     infoWindow.setContent(content);
     infoWindow.setPosition(event.latLng);
     infoWindow.open(mainMap);
