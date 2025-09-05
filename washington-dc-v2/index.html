@@ -5,60 +5,469 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Washington DC On-street Map - Enhanced with Drawing Tools</title>
     <style>
-        /* -- all CSS unchanged -- */
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; background: #1a1a1a; }
-        #street-view { height: 55vh; width: 100%; position: relative; border-bottom: 3px solid #2196F3; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); }
-        #main-map { height: 45vh; width: 100%; position: relative; }
-        .controls-container { position: absolute; bottom: 20px; left: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 5; }
-        .control-button { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px 20px; border-radius: 25px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); min-width: 160px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .control-button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6); }
-        .control-button:active { transform: translateY(0); }
-        .control-button.active { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { box-shadow: 0 4px 15px rgba(240, 147, 251, 0.4); } 50% { box-shadow: 0 4px 25px rgba(240, 147, 251, 0.7); } }
-        .control-button.clear { background: linear-gradient(135deg, #ee5a24 0%, #f79f1f 100%); }
-        .control-button.draw-point { background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); }
-        .control-button.draw-line { background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%); }
-        .control-button.draw-multiline { background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%); }
-        #search-container { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; align-items: center; background: white; border-radius: 30px; padding: 5px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); transition: all 0.3s ease; }
-        #search-container:focus-within { box-shadow: 0 6px 30px rgba(33, 150, 243, 0.4); }
-        #search-box { border: none; padding: 12px 20px; font-size: 15px; width: 250px; outline: none; background: transparent; }
-        #search-button { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px 20px; border-radius: 25px; cursor: pointer; font-weight: 600; margin-right: 5px; transition: all 0.3s ease; }
-        #search-button:hover { transform: scale(1.05); }
-        .info-panel { position: absolute; top: 20px; right: 20px; background: rgba(255, 255, 255, 0.95); padding: 20px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); z-index: 5; max-width: 320px; backdrop-filter: blur(10px); display: none; transition: all 0.3s ease; }
-        .info-panel.active { display: block; animation: slideIn 0.3s ease; }
-        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
-        .info-panel h3 { color: #333; margin-bottom: 15px; font-size: 18px; border-bottom: 2px solid #2196F3; padding-bottom: 10px; display: flex; align-items: center; gap: 8px; }
-        .info-item { margin: 12px 0; color: #555; font-size: 14px; line-height: 1.6; padding: 8px; background: rgba(33, 150, 243, 0.05); border-radius: 8px; transition: background 0.2s ease; }
-        .info-item:hover { background: rgba(33, 150, 243, 0.1); }
-        .info-item strong { color: #333; font-weight: 600; display: inline-block; min-width: 80px; }
-        .distance-value { color: #2196F3; font-size: 20px; font-weight: bold; display: block; text-align: center; margin: 10px 0; padding: 10px; background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%); border-radius: 10px; }
-        .measurement-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
-        .stat-box { text-align: center; padding: 10px; background: rgba(33, 150, 243, 0.08); border-radius: 8px; border: 1px solid rgba(33, 150, 243, 0.2); }
-        .stat-box .value { font-size: 18px; font-weight: bold; color: #2196F3; }
-        .stat-box .label { font-size: 11px; color: #666; margin-top: 4px; }
-        .geojson-panel { position: absolute; top: 20px; left: 20px; background: rgba(255, 255, 255, 0.95); padding: 20px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); z-index: 5; max-width: 400px; max-height: 60vh; backdrop-filter: blur(10px); display: none; transition: all 0.3s ease; overflow-y: auto; }
-        .geojson-panel.active { display: block; animation: slideInLeft 0.3s ease; }
-        @keyframes slideInLeft { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
-        .geojson-panel h3 { color: #333; margin-bottom: 15px; font-size: 18px; border-bottom: 2px solid #4CAF50; padding-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
-        .geojson-output { background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; margin: 10px 0; }
-        .copy-button { background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.3s ease; margin-top: 10px; }
-        .copy-button:hover { transform: scale(1.05); }
-        .drawing-controls { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; gap: 10px; background: rgba(255, 255, 255, 0.9); padding: 10px; border-radius: 25px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); }
-        .draw-button { background: rgba(255, 255, 255, 0.9); border: 2px solid #ddd; color: #333; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; font-size: 12px; }
-        .draw-button:hover { background: #f0f0f0; }
-        .draw-button.active { background: #2196F3; color: white; border-color: #2196F3; }
-        .loading-spinner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; z-index: 10; }
-        .loading-spinner.active { display: block; }
-        .spinner { width: 50px; height: 50px; border: 5px solid rgba(255, 255, 255, 0.3); border-top-color: #2196F3; border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .street-view-controls { position: absolute; top: 20px; left: 20px; z-index: 5; display: flex; gap: 10px; }
-        .view-button { background: rgba(255, 255, 255, 0.9); border: 2px solid #2196F3; color: #2196F3; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
-        .view-button:hover { background: #2196F3; color: white; }
-        .coordinates-display { position: absolute; bottom: 20px; right: 20px; background: rgba(0, 0, 0, 0.7); color: white; padding: 10px 15px; border-radius: 10px; font-size: 12px; z-index: 5; font-family: 'Courier New', monospace; }
-        .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(100px); background: rgba(0, 0, 0, 0.8); color: white; padding: 12px 24px; border-radius: 25px; z-index: 1000; opacity: 0; transition: all 0.3s ease; }
-        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-        @media (max-width: 768px) { .controls-container { flex-direction: row; bottom: 70px; flex-wrap: wrap; } .control-button { min-width: auto; padding: 8px 12px; font-size: 11px; } .drawing-controls { top: 10px; padding: 5px; } .draw-button { padding: 6px 12px; font-size: 10px; } .geojson-panel, .info-panel { max-width: 90%; left: 5%; right: 5%; top: 10px; } }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: #1a1a1a;
+        }
+
+        #street-view {
+            height: 55vh;
+            width: 100%;
+            position: relative;
+            border-bottom: 3px solid #2196F3;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        #main-map {
+            height: 45vh;
+            width: 100%;
+            position: relative;
+        }
+
+        .controls-container {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 5;
+        }
+
+        .control-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            min-width: 160px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .control-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .control-button:active {
+            transform: translateY(0);
+        }
+
+        .control-button.active {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 4px 15px rgba(240, 147, 251, 0.4); }
+            50% { box-shadow: 0 4px 25px rgba(240, 147, 251, 0.7); }
+        }
+
+        .control-button.clear {
+            background: linear-gradient(135deg, #ee5a24 0%, #f79f1f 100%);
+        }
+
+        .control-button.draw-point {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        }
+
+        .control-button.draw-line {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+        }
+
+        .control-button.draw-multiline {
+            background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%);
+        }
+
+        #search-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            background: white;
+            border-radius: 30px;
+            padding: 5px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        #search-container:focus-within {
+            box-shadow: 0 6px 30px rgba(33, 150, 243, 0.4);
+        }
+
+        #search-box {
+            border: none;
+            padding: 12px 20px;
+            font-size: 15px;
+            width: 250px;
+            outline: none;
+            background: transparent;
+        }
+
+        #search-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-right: 5px;
+            transition: all 0.3s ease;
+        }
+
+        #search-button:hover {
+            transform: scale(1.05);
+        }
+
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            z-index: 5;
+            max-width: 320px;
+            backdrop-filter: blur(10px);
+            display: none;
+            transition: all 0.3s ease;
+        }
+
+        .info-panel.active {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .info-panel h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #2196F3;
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-item {
+            margin: 12px 0;
+            color: #555;
+            font-size: 14px;
+            line-height: 1.6;
+            padding: 8px;
+            background: rgba(33, 150, 243, 0.05);
+            border-radius: 8px;
+            transition: background 0.2s ease;
+        }
+
+        .info-item:hover {
+            background: rgba(33, 150, 243, 0.1);
+        }
+
+        .info-item strong {
+            color: #333;
+            font-weight: 600;
+            display: inline-block;
+            min-width: 80px;
+        }
+
+        .distance-value {
+            color: #2196F3;
+            font-size: 20px;
+            font-weight: bold;
+            display: block;
+            text-align: center;
+            margin: 10px 0;
+            padding: 10px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-radius: 10px;
+        }
+
+        .measurement-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .stat-box {
+            text-align: center;
+            padding: 10px;
+            background: rgba(33, 150, 243, 0.08);
+            border-radius: 8px;
+            border: 1px solid rgba(33, 150, 243, 0.2);
+        }
+
+        .stat-box .value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2196F3;
+        }
+
+        .stat-box .label {
+            font-size: 11px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        /* GeoJSON Panel Styles */
+        .geojson-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            z-index: 5;
+            max-width: 400px;
+            max-height: 60vh;
+            backdrop-filter: blur(10px);
+            display: none;
+            transition: all 0.3s ease;
+            overflow-y: auto;
+        }
+
+        .geojson-panel.active {
+            display: block;
+            animation: slideInLeft 0.3s ease;
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .geojson-panel h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .geojson-output {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 200px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+
+        .copy-button {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .copy-button:hover {
+            transform: scale(1.05);
+        }
+
+        .drawing-controls {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 5;
+            display: flex;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 25px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .draw-button {
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #ddd;
+            color: #333;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            font-size: 12px;
+        }
+
+        .draw-button:hover {
+            background: #f0f0f0;
+        }
+
+        .draw-button.active {
+            background: #2196F3;
+            color: white;
+            border-color: #2196F3;
+        }
+
+        .loading-spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: none;
+            z-index: 10;
+        }
+
+        .loading-spinner.active {
+            display: block;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #2196F3;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .street-view-controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 5;
+            display: flex;
+            gap: 10px;
+        }
+
+        .view-button {
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #2196F3;
+            color: #2196F3;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .view-button:hover {
+            background: #2196F3;
+            color: white;
+        }
+
+        .coordinates-display {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-size: 12px;
+            z-index: 5;
+            font-family: 'Courier New', monospace;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            z-index: 1000;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .controls-container {
+                flex-direction: row;
+                bottom: 70px;
+                flex-wrap: wrap;
+            }
+
+            .control-button {
+                min-width: auto;
+                padding: 8px 12px;
+                font-size: 11px;
+            }
+
+            .drawing-controls {
+                top: 10px;
+                padding: 5px;
+            }
+
+            .draw-button {
+                padding: 6px 12px;
+                font-size: 10px;
+            }
+
+            .geojson-panel, .info-panel {
+                max-width: 90%;
+                left: 5%;
+                right: 5%;
+                top: 10px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -69,28 +478,27 @@
         </div>
     </div>
     
-    <div id="main-map"></div>
+    <div id="main-map">
+        
+    </div>
     
     <div class="drawing-controls">
-        <button id="pointBtn" class="draw-button" onclick="setDrawingMode('point')">
-            📍 Point
-        </button>
-        <button id="lineBtn" class="draw-button" onclick="setDrawingMode('line')">
-            📏 Line
-        </button>
-        <button id="multilineBtn" class="draw-button" onclick="setDrawingMode('multiline')">
-            〰️ MultiLine
-        </button>
-        <button class="draw-button" onclick="clearDrawings()">
-            🗑️ Clear
-        </button>
-        <button class="draw-button" onclick="toggleGeoJSONPanel()">
-            📋 GeoJSON
-        </button>
-        <button id="endMultilineBtn" class="draw-button" style="display:none;" onclick="finishMultilineFromButton()">
-            ✅ End MultiLine
-        </button>
-    </div>
+            <button id="pointBtn" class="draw-button" onclick="setDrawingMode('point')">
+                📍 Point
+            </button>
+            <button id="lineBtn" class="draw-button" onclick="setDrawingMode('line')">
+                📏 Line
+            </button>
+            <button id="multilineBtn" class="draw-button" onclick="setDrawingMode('multiline')">
+                〰️ MultiLine
+            </button>
+            <button class="draw-button" onclick="clearDrawings()">
+                🗑️ Clear
+            </button>
+            <button class="draw-button" onclick="toggleGeoJSONPanel()">
+                📋 GeoJSON
+            </button>
+        </div>
     
     <div class="controls-container">
         <button id="measureBtn" class="control-button" onclick="toggleMeasurement()">
@@ -168,6 +576,7 @@
         let streetView;
         let measurementActive = false;
         let searchMarker;
+        
         // Drawing variables
         let drawingMode = null;
         let drawnFeatures = [];
@@ -178,13 +587,23 @@
 
         function initMap() {
             showLoading(true);
+            
             const defaultCenter = { lat: 38.902706, lng: -77.030629 };
+            
             const mapOptions = {
                 center: defaultCenter,
                 zoom: 18,
                 styles: [
-                    { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] },
-                    { featureType: "transit", elementType: "labels.icon", stylers: [{ visibility: "off" }] }
+                    {
+                        featureType: "poi",
+                        elementType: "labels",
+                        stylers: [{ visibility: "off" }]
+                    },
+                    {
+                        featureType: "transit",
+                        elementType: "labels.icon",
+                        stylers: [{ visibility: "off" }]
+                    }
                 ],
                 mapTypeControl: true,
                 mapTypeControlOptions: {
@@ -194,81 +613,143 @@
                 fullscreenControl: false,
                 streetViewControl: true,
                 zoomControl: true,
-                zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_CENTER }
+                zoomControlOptions: {
+                    position: google.maps.ControlPosition.RIGHT_CENTER
+                }
             };
+
             mainMap = new google.maps.Map(document.getElementById("main-map"), mapOptions);
+            
+            // Initialize Street View
             streetView = new google.maps.StreetViewPanorama(
                 document.getElementById("street-view"),
-                { position: defaultCenter, pov: { heading: 0, pitch: 0 }, zoom: 1, addressControl: true, linksControl: true, panControl: true, enableCloseButton: false }
+                {
+                    position: defaultCenter,
+                    pov: { heading: 0, pitch: 0 },
+                    zoom: 1,
+                    addressControl: true,
+                    linksControl: true,
+                    panControl: true,
+                    enableCloseButton: false
+                }
             );
+            
             mainMap.setStreetView(streetView);
+            
+            // Load GeoJSON data if available
             if (typeof yourGeoJsonData !== 'undefined') {
                 mainMap.data.addGeoJson(yourGeoJsonData);
                 styleGeoJsonData();
             }
+            
+            // Initialize info window
             infoWindow = new google.maps.InfoWindow();
+            
+            // Set up event listeners
             setupEventListeners();
-            mainMap.addListener('mousemove', (e) => { updateCoordinatesDisplay(e.latLng); });
+            
+            // Update coordinates display
+            mainMap.addListener('mousemove', (e) => {
+                updateCoordinatesDisplay(e.latLng);
+            });
+            
             showLoading(false);
             showToast('Map loaded successfully!');
         }
 
         function styleGeoJsonData() {
-            mainMap.data.setStyle((feature) => ({
-                icon: { url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png", scaledSize: new google.maps.Size(32, 32), anchor: new google.maps.Point(16, 32) },
-                animation: google.maps.Animation.DROP
-            }));
+            mainMap.data.setStyle((feature) => {
+                return {
+                    icon: {
+                        url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+                        scaledSize: new google.maps.Size(32, 32),
+                        anchor: new google.maps.Point(16, 32)
+                    },
+                    animation: google.maps.Animation.DROP
+                };
+            });
+
             mainMap.data.addListener("click", (event) => {
                 const content = `
                     <div class="custom-info-window">
                         <h4>Location Details</h4>
-                        <div class="info-row"><strong>Object ID:</strong> ${event.feature.getProperty("object") || "N/A"}</div>
-                        <div class="info-row"><strong>Route:</strong> ${event.feature.getProperty("area") || "N/A"}</div>
-                        <div class="info-row"><strong>Position:</strong> ${event.latLng.toUrlValue(6)}</div>
+                        <div class="info-row">
+                            <strong>Object ID:</strong> ${event.feature.getProperty("object") || "N/A"}
+                        </div>
+                        <div class="info-row">
+                            <strong>Route:</strong> ${event.feature.getProperty("area") || "N/A"}
+                        </div>
+                        <div class="info-row">
+                            <strong>Position:</strong> ${event.latLng.toUrlValue(6)}
+                        </div>
                     </div>`;
                 infoWindow.setContent(content);
                 infoWindow.setPosition(event.latLng);
                 infoWindow.open(mainMap);
+                
+                // Update street view
                 streetView.setPosition(event.latLng);
             });
         }
 
         function setupEventListeners() {
+            // Search functionality
             const searchBox = document.getElementById("search-box");
-            searchBox.addEventListener("keypress", (e) => { if (e.key === "Enter") performSearch(); });
+            searchBox.addEventListener("keypress", (e) => {
+                if (e.key === "Enter") {
+                    performSearch();
+                }
+            });
+
+            // Map click listeners for drawing and measurement
             mainMap.addListener('click', (e) => {
                 if (measurementActive && markerA && markerB) {
+                    // Measurement mode
                     const distToA = google.maps.geometry.spherical.computeDistanceBetween(e.latLng, markerA.getPosition());
                     const distToB = google.maps.geometry.spherical.computeDistanceBetween(e.latLng, markerB.getPosition());
-                    if (distToA <= distToB) markerA.setPosition(e.latLng);
-                    else markerB.setPosition(e.latLng);
+                    
+                    if (distToA <= distToB) {
+                        markerA.setPosition(e.latLng);
+                    } else {
+                        markerB.setPosition(e.latLng);
+                    }
                     updateDistance();
                 } else if (drawingMode) {
+                    // Drawing mode
                     handleDrawingClick(e.latLng);
                 }
             });
+
+            // Right-click to finish multiline segment
             mainMap.addListener('rightclick', (e) => {
                 if (drawingMode === 'multiline' && currentLineCoords.length > 1) {
                     finishMultilineSegment();
                 }
             });
+
+            // Double-click to finish multiline entirely
             mainMap.addListener('dblclick', (e) => {
                 if (drawingMode === 'multiline' && multilineCoords.length > 0) {
                     finishMultiline();
-                    clearDrawingMode();
                 }
             });
         }
 
-        // --- Drawing functions with End Button ---
+        // Drawing functions
         function setDrawingMode(mode) {
+            // Clear previous mode
             clearDrawingMode();
+            
             drawingMode = mode;
+            
+            // Update button states
             document.querySelectorAll('.draw-button').forEach(btn => btn.classList.remove('active'));
             document.getElementById(mode + 'Btn').classList.add('active');
+            
+            // Update cursor
             mainMap.setOptions({ draggableCursor: 'crosshair' });
+            
             showToast(`${mode.charAt(0).toUpperCase() + mode.slice(1)} drawing mode activated`);
-            document.getElementById('endMultilineBtn').style.display = (mode === 'multiline') ? 'inline-block' : 'none';
         }
 
         function clearDrawingMode() {
@@ -277,16 +758,25 @@
             currentLineCoords = [];
             multilineCoords = [];
             isDrawingMultiline = false;
+            
+            // Reset cursor
             mainMap.setOptions({ draggableCursor: null });
+            
+            // Clear active button states
             document.querySelectorAll('.draw-button').forEach(btn => btn.classList.remove('active'));
-            document.getElementById('endMultilineBtn').style.display = 'none';
         }
 
         function handleDrawingClick(latLng) {
             switch (drawingMode) {
-                case 'point': createPoint(latLng); break;
-                case 'line': addLinePoint(latLng); break;
-                case 'multiline': addMultilinePoint(latLng); break;
+                case 'point':
+                    createPoint(latLng);
+                    break;
+                case 'line':
+                    addLinePoint(latLng);
+                    break;
+                case 'multiline':
+                    addMultilinePoint(latLng);
+                    break;
             }
         }
 
@@ -294,27 +784,60 @@
             const marker = new google.maps.Marker({
                 position: latLng,
                 map: mainMap,
-                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: "#4CAF50", fillOpacity: 0.9, strokeColor: "#ffffff", strokeWeight: 2 },
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 8,
+                    fillColor: "#4CAF50",
+                    fillOpacity: 0.9,
+                    strokeColor: "#ffffff",
+                    strokeWeight: 2
+                },
                 title: "Point Feature"
             });
-            const geojson = { coordinates: [latLng.lng(), latLng.lat()], type: "Point" };
-            drawnFeatures.push({ type: 'point', marker: marker, geojson: geojson });
+
+            const geojson = {
+                coordinates: [latLng.lng(), latLng.lat()],
+                type: "Point"
+            };
+
+            drawnFeatures.push({
+                type: 'point',
+                marker: marker,
+                geojson: geojson
+            });
+
             updateGeoJSONDisplay();
             showToast('Point created!');
         }
 
         function addLinePoint(latLng) {
             currentLineCoords.push(latLng);
+            
+            // Create marker for the point
             const marker = new google.maps.Marker({
                 position: latLng,
                 map: mainMap,
-                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: "#2196F3", fillOpacity: 0.9, strokeColor: "#ffffff", strokeWeight: 2 }
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 6,
+                    fillColor: "#2196F3",
+                    fillOpacity: 0.9,
+                    strokeColor: "#ffffff",
+                    strokeWeight: 2
+                }
             });
+
             if (currentLineCoords.length === 1) {
-                currentLine = { markers: [marker], polyline: null };
+                // First point
+                currentLine = {
+                    markers: [marker],
+                    polyline: null
+                };
                 showToast('Line started - click to add second point');
             } else if (currentLineCoords.length === 2) {
+                // Second point - complete the line
                 currentLine.markers.push(marker);
+                
                 const polyline = new google.maps.Polyline({
                     path: currentLineCoords,
                     geodesic: true,
@@ -323,11 +846,25 @@
                     strokeWeight: 3,
                     map: mainMap
                 });
+                
                 currentLine.polyline = polyline;
-                const geojson = { coordinates: currentLineCoords.map(coord => [coord.lng(), coord.lat()]), type: "LineString" };
-                drawnFeatures.push({ type: 'line', markers: currentLine.markers, polyline: polyline, geojson: geojson });
+
+                const geojson = {
+                    coordinates: currentLineCoords.map(coord => [coord.lng(), coord.lat()]),
+                    type: "LineString"
+                };
+
+                drawnFeatures.push({
+                    type: 'line',
+                    markers: currentLine.markers,
+                    polyline: polyline,
+                    geojson: geojson
+                });
+
+                // Reset for next line
                 currentLine = null;
                 currentLineCoords = [];
+                
                 updateGeoJSONDisplay();
                 showToast('Line completed!');
             }
@@ -335,20 +872,35 @@
 
         function addMultilinePoint(latLng) {
             currentLineCoords.push(latLng);
+            
+            // Create marker for the point
             const marker = new google.maps.Marker({
                 position: latLng,
                 map: mainMap,
-                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: "#9C27B0", fillOpacity: 0.9, strokeColor: "#ffffff", strokeWeight: 2 }
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 6,
+                    fillColor: "#9C27B0",
+                    fillOpacity: 0.9,
+                    strokeColor: "#ffffff",
+                    strokeWeight: 2
+                }
             });
+
             if (!isDrawingMultiline) {
                 isDrawingMultiline = true;
                 multilineCoords = [];
-                showToast('MultiLine started - right-click to finish segment, double-click or press "End MultiLine" to finish');
+                showToast('MultiLine started - right-click to finish segment, double-click to finish');
             }
+
+            // Update or create current segment polyline
             if (currentLineCoords.length >= 2) {
+                // Remove old polyline if exists
                 if (currentLine && currentLine.polyline) {
                     currentLine.polyline.setMap(null);
                 }
+                
+                // Create new polyline for current segment
                 const polyline = new google.maps.Polyline({
                     path: currentLineCoords,
                     geodesic: true,
@@ -360,7 +912,10 @@
                         { icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 4 }, offset: '0', repeat: '20px' }
                     ]
                 });
-                if (!currentLine) currentLine = { markers: [], polylines: [] };
+                
+                if (!currentLine) {
+                    currentLine = { markers: [], polylines: [] };
+                }
                 currentLine.markers.push(marker);
                 currentLine.polylines = currentLine.polylines || [];
                 currentLine.polylines.push(polyline);
@@ -373,63 +928,514 @@
 
         function finishMultilineSegment() {
             if (currentLineCoords.length > 1) {
+                // Add current segment to multiline coordinates
                 multilineCoords.push(currentLineCoords.map(coord => [coord.lng(), coord.lat()]));
+                
+                // Reset current line for next segment
                 currentLineCoords = [];
+                
                 showToast(`Segment ${multilineCoords.length} completed - click to start new segment`);
             }
         }
 
-        function finishMultilineFromButton() {
-            if (drawingMode === 'multiline') {
-                finishMultiline();
-                clearDrawingMode();
-            }
-        }
-
         function finishMultiline() {
-            if (multilineCoords.length > 0 || currentLineCoords.length > 1) {
+            if (multilineCoords.length > 0) {
+                // Add current segment if it has points
                 if (currentLineCoords.length > 1) {
                     multilineCoords.push(currentLineCoords.map(coord => [coord.lng(), coord.lat()]));
                 }
-                const geojson = { coordinates: multilineCoords, type: "MultiLineString" };
+
+                const geojson = {
+                    coordinates: multilineCoords,
+                    type: "MultiLineString"
+                };
+
                 drawnFeatures.push({
                     type: 'multiline',
                     markers: currentLine ? currentLine.markers : [],
                     polylines: currentLine ? currentLine.polylines : [],
                     geojson: geojson
                 });
+
+                // Reset multiline drawing state
                 currentLine = null;
                 currentLineCoords = [];
                 multilineCoords = [];
                 isDrawingMultiline = false;
+                
                 updateGeoJSONDisplay();
                 showToast('MultiLine completed!');
             }
         }
 
         function clearDrawings() {
+            // Remove all drawn features from map
             drawnFeatures.forEach(feature => {
-                if (feature.marker) feature.marker.setMap(null);
-                if (feature.markers) feature.markers.forEach(marker => marker.setMap(null));
-                if (feature.polyline) feature.polyline.setMap(null);
-                if (feature.polylines) feature.polylines.forEach(polyline => polyline.setMap(null));
+                if (feature.marker) {
+                    feature.marker.setMap(null);
+                }
+                if (feature.markers) {
+                    feature.markers.forEach(marker => marker.setMap(null));
+                }
+                if (feature.polyline) {
+                    feature.polyline.setMap(null);
+                }
+                if (feature.polylines) {
+                    feature.polylines.forEach(polyline => polyline.setMap(null));
+                }
             });
+
+            // Clear current drawing state
             if (currentLine) {
-                if (currentLine.markers) currentLine.markers.forEach(marker => marker.setMap(null));
-                if (currentLine.polyline) currentLine.polyline.setMap(null);
-                if (currentLine.polylines) currentLine.polylines.forEach(polyline => polyline.setMap(null));
+                if (currentLine.markers) {
+                    currentLine.markers.forEach(marker => marker.setMap(null));
+                }
+                if (currentLine.polyline) {
+                    currentLine.polyline.setMap(null);
+                }
+                if (currentLine.polylines) {
+                    currentLine.polylines.forEach(polyline => polyline.setMap(null));
+                }
             }
+
+            // Reset all variables
             drawnFeatures = [];
-            currentLine = null;
-            currentLineCoords = [];
-            multilineCoords = [];
-            isDrawingMultiline = false;
+            clearDrawingMode();
+            
             updateGeoJSONDisplay();
-            showToast('All drawings cleared!');
+            showToast('All drawings cleared');
         }
 
-        // --- Other utility and map functions unchanged ---
-        // (You would retain previous measurement, geojson display, toast, etc. logic here)
+        function updateGeoJSONDisplay() {
+            const listContainer = document.getElementById('geojson-list');
+            listContainer.innerHTML = '';
+
+            drawnFeatures.forEach((feature, index) => {
+                const featureDiv = document.createElement('div');
+                featureDiv.className = 'info-item';
+                featureDiv.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <strong>${feature.type.charAt(0).toUpperCase() + feature.type.slice(1)} ${index + 1}</strong>
+                        <div>
+                            <button class="copy-button" onclick="copyGeoJSON(${index})" style="margin: 0 5px;">Copy</button>
+                            <button class="copy-button" onclick="deleteFeature(${index})" style="background: #f44336;">Delete</button>
+                        </div>
+                    </div>
+                    <div class="geojson-output">${JSON.stringify(feature.geojson, null, 2)}</div>
+                `;
+                listContainer.appendChild(featureDiv);
+            });
+        }
+
+        function copyGeoJSON(index) {
+            const geojson = JSON.stringify(drawnFeatures[index].geojson);
+            navigator.clipboard.writeText(geojson).then(() => {
+                showToast('GeoJSON copied to clipboard!');
+            }).catch(err => {
+                showToast('Failed to copy to clipboard', 'error');
+            });
+        }
+
+        function copyAllGeoJSON() {
+            if (drawnFeatures.length === 0) {
+                showToast('No features to copy', 'error');
+                return;
+            }
+
+            const allGeoJSON = {
+                type: "FeatureCollection",
+                features: drawnFeatures.map((feature, index) => ({
+                    type: "Feature",
+                    properties: {
+                        id: index + 1,
+                        featureType: feature.type
+                    },
+                    geometry: feature.geojson
+                }))
+            };
+
+            navigator.clipboard.writeText(JSON.stringify(allGeoJSON, null, 2)).then(() => {
+                showToast('All GeoJSON copied as FeatureCollection!');
+            }).catch(err => {
+                showToast('Failed to copy to clipboard', 'error');
+            });
+        }
+
+        function deleteFeature(index) {
+            const feature = drawnFeatures[index];
+            
+            // Remove from map
+            if (feature.marker) {
+                feature.marker.setMap(null);
+            }
+            if (feature.markers) {
+                feature.markers.forEach(marker => marker.setMap(null));
+            }
+            if (feature.polyline) {
+                feature.polyline.setMap(null);
+            }
+            if (feature.polylines) {
+                feature.polylines.forEach(polyline => polyline.setMap(null));
+            }
+
+            // Remove from array
+            drawnFeatures.splice(index, 1);
+            
+            updateGeoJSONDisplay();
+            showToast('Feature deleted');
+        }
+
+        function toggleGeoJSONPanel() {
+            const panel = document.getElementById('geojson-panel');
+            panel.classList.toggle('active');
+            
+            if (panel.classList.contains('active')) {
+                updateGeoJSONDisplay();
+            }
+        }
+
+        // Original functions (measurement, search, etc.)
+        function performSearch() {
+            const searchID = document.getElementById("search-box").value.trim();
+            if (!searchID) {
+                showToast('Please enter an Object ID');
+                return;
+            }
+            
+            findAndHighlightPoint(searchID);
+        }
+
+        function findAndHighlightPoint(searchID) {
+            showLoading(true);
+            
+            // Clear previous search marker
+            if (searchMarker) {
+                searchMarker.setMap(null);
+            }
+            
+            const feature = mainMap.data.getFeatureById(searchID);
+            
+            if (feature) {
+                const pointCoordinates = feature.getGeometry().get();
+                
+                // Animate to location
+                mainMap.panTo(pointCoordinates);
+                setTimeout(() => {
+                    mainMap.setZoom(19);
+                }, 500);
+                
+                // Update street view
+                streetView.setPosition(pointCoordinates);
+                streetView.setPov({ heading: 0, pitch: 0 });
+                
+                // Create enhanced marker
+                searchMarker = new google.maps.Marker({
+                    position: pointCoordinates,
+                    map: mainMap,
+                    animation: google.maps.Animation.BOUNCE,
+                    icon: {
+                        url: "http://maps.google.com/mapfiles/ms/icons/yellow-dot.png",
+                        scaledSize: new google.maps.Size(48, 48)
+                    },
+                    title: `Object: ${feature.getProperty("object")}`
+                });
+                
+                // Stop animation after 3 seconds
+                setTimeout(() => {
+                    searchMarker.setAnimation(null);
+                }, 3000);
+                
+                // Show info window
+                const content = `
+                    <div class="custom-info-window">
+                        <h4>Search Result</h4>
+                        <div class="info-row">
+                            <strong>Object ID:</strong> ${feature.getProperty("object")}
+                        </div>
+                        <div class="info-row">
+                            <strong>Route:</strong> ${feature.getProperty("area") || "N/A"}
+                        </div>
+                    </div>`;
+                infoWindow.setContent(content);
+                infoWindow.open(mainMap, searchMarker);
+                
+                showToast(`Found: ${feature.getProperty("object")}`);
+            } else {
+                showToast('Object ID not found', 'error');
+            }
+            
+            showLoading(false);
+        }
+
+        function toggleMeasurement() {
+            measurementActive = !measurementActive;
+            const btn = document.getElementById('measureBtn');
+            const icon = document.getElementById('measureIcon');
+            const text = document.getElementById('measureText');
+            
+            if (measurementActive) {
+                // Clear drawing mode when starting measurement
+                clearDrawingMode();
+                
+                // Start measurement mode
+                btn.classList.add('active');
+                icon.textContent = '⏹️';
+                text.textContent = 'Stop Measuring';
+                
+                // Close any open info windows
+                infoWindow.close();
+                
+                initMeasurement();
+                showToast('Measurement mode active - Click or drag markers');
+            } else {
+                // Stop measurement mode
+                btn.classList.remove('active');
+                icon.textContent = '📏';
+                text.textContent = 'Start Measuring';
+                
+                // Hide markers but keep them for later use
+                if (markerA) markerA.setMap(null);
+                if (markerB) markerB.setMap(null);
+                if (line) line.setMap(null);
+                
+                // Hide info panel
+                document.getElementById('info-panel').classList.remove('active');
+                
+                showToast('Measurement mode stopped');
+            }
+        }
+
+        function initMeasurement() {
+            const center = mainMap.getCenter();
+            
+            if (!markerA) {
+                // Create markers for the first time
+                markerA = new google.maps.Marker({
+                    position: center,
+                    map: mainMap,
+                    draggable: true,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 8,
+                        fillColor: "#4CAF50",
+                        fillOpacity: 0.9,
+                        strokeColor: "#ffffff",
+                        strokeWeight: 2
+                    },
+                    title: "Point A",
+                    zIndex: 1000
+                });
+                
+                markerB = new google.maps.Marker({
+                    position: new google.maps.LatLng(center.lat() + 0.0002, center.lng() + 0.0002),
+                    map: mainMap,
+                    draggable: true,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 8,
+                        fillColor: "#f44336",
+                        fillOpacity: 0.9,
+                        strokeColor: "#ffffff",
+                        strokeWeight: 2
+                    },
+                    title: "Point B",
+                    zIndex: 1000
+                });
+                
+                markerA.addListener("dragend", updateDistance);
+                markerB.addListener("dragend", updateDistance);
+                markerA.addListener("drag", updateDistance);
+                markerB.addListener("drag", updateDistance);
+                
+                // Create the line
+                line = new google.maps.Polyline({
+                    path: [markerA.getPosition(), markerB.getPosition()],
+                    geodesic: true,
+                    strokeColor: "#2196F3",
+                    strokeOpacity: 1.0,
+                    strokeWeight: 3,
+                    map: mainMap,
+                    icons: [{
+                        icon: {
+                            path: 'M 0,-1 0,1',
+                            strokeOpacity: 1,
+                            scale: 4
+                        },
+                        offset: '0',
+                        repeat: '20px'
+                    }]
+                });
+            } else {
+                // Reuse existing markers
+                markerA.setPosition(center);
+                markerB.setPosition(new google.maps.LatLng(center.lat() + 0.0002, center.lng() + 0.0002));
+                markerA.setMap(mainMap);
+                markerB.setMap(mainMap);
+                line.setMap(mainMap);
+            }
+            
+            updateDistance();
+            document.getElementById('info-panel').classList.add('active');
+        }
+
+        function updateDistance() {
+            if (!markerA || !markerB) return;
+            
+            const posA = markerA.getPosition();
+            const posB = markerB.getPosition();
+            
+            const distance = google.maps.geometry.spherical.computeDistanceBetween(posA, posB);
+            
+            // Update line path
+            line.setPath([posA, posB]);
+            
+            // Update info panel
+            updateInfoPanel(distance, posA, posB);
+        }
+
+        function updateInfoPanel(distance, posA, posB) {
+            // Update main distance
+            document.getElementById('main-distance').textContent = `${distance.toFixed(2)} m`;
+            
+            // Update stats
+            document.getElementById('feet-value').textContent = (distance * 3.28084).toFixed(2);
+            document.getElementById('parallel-cars').textContent = (distance / 6).toFixed(1);
+            document.getElementById('perp-cars').textContent = (distance / 3).toFixed(1);
+            document.getElementById('walking-time').textContent = Math.round(distance / 1.4); // Average walking speed
+            
+            // Update coordinates
+            document.getElementById('point-a-coords').textContent = posA.toUrlValue(6);
+            document.getElementById('point-b-coords').textContent = posB.toUrlValue(6);
+        }
+
+        function clearAll() {
+            // Stop measurement mode if active
+            if (measurementActive) {
+                toggleMeasurement();
+            }
+            
+            // Clear drawing mode if active
+            clearDrawingMode();
+            
+            // Clear all markers
+            if (markerA) {
+                markerA.setMap(null);
+                markerA = null;
+            }
+            if (markerB) {
+                markerB.setMap(null);
+                markerB = null;
+            }
+            if (line) {
+                line.setMap(null);
+                line = null;
+            }
+            if (searchMarker) {
+                searchMarker.setMap(null);
+                searchMarker = null;
+            }
+            
+            // Clear all drawings
+            clearDrawings();
+            
+            // Close info windows and panels
+            infoWindow.close();
+            document.getElementById('info-panel').classList.remove('active');
+            document.getElementById('geojson-panel').classList.remove('active');
+            document.getElementById('search-box').value = '';
+            
+            showToast('Everything cleared');
+        }
+
+        function resetStreetView() {
+            const center = mainMap.getCenter();
+            streetView.setPosition(center);
+            streetView.setPov({ heading: 0, pitch: 0 });
+            showToast('Street view reset');
+        }
+
+        function toggleFullscreen() {
+            const streetViewDiv = document.getElementById('street-view');
+            
+            if (!document.fullscreenElement) {
+                streetViewDiv.requestFullscreen().catch(err => {
+                    showToast(`Error: ${err.message}`, 'error');
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        function updateCoordinatesDisplay(latLng) {
+            const display = document.getElementById('coordinates-display');
+            display.textContent = `Lat: ${latLng.lat().toFixed(6)}, Lng: ${latLng.lng().toFixed(6)}`;
+        }
+
+        function showLoading(show) {
+            const loader = document.getElementById('loading');
+            if (show) {
+                loader.classList.add('active');
+            } else {
+                loader.classList.remove('active');
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.background = type === 'error' ? 
+                'rgba(244, 67, 54, 0.9)' : 'rgba(76, 175, 80, 0.9)';
+            
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 'm':
+                        e.preventDefault();
+                        toggleMeasurement();
+                        break;
+                    case 'k':
+                        e.preventDefault();
+                        clearAll();
+                        break;
+                    case 'f':
+                        e.preventDefault();
+                        document.getElementById('search-box').focus();
+                        break;
+                    case 'p':
+                        e.preventDefault();
+                        setDrawingMode('point');
+                        break;
+                    case 'l':
+                        e.preventDefault();
+                        setDrawingMode('line');
+                        break;
+                    case 'u':
+                        e.preventDefault();
+                        setDrawingMode('multiline');
+                        break;
+                    case 'g':
+                        e.preventDefault();
+                        toggleGeoJSONPanel();
+                        break;
+                }
+            }
+            
+            // ESC to cancel current drawing mode
+            if (e.key === 'Escape') {
+                clearDrawingMode();
+            }
+        });
     </script>
+    
+    <!-- Include your GeoJSON data -->
+<script src="geojson.js"></script>
 </body>
 </html>
