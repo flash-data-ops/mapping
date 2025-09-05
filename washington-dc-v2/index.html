@@ -5,469 +5,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Washington DC On-street Map - Enhanced with Drawing Tools</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            overflow: hidden;
-            background: #1a1a1a;
-        }
-
-        #street-view {
-            height: 55vh;
-            width: 100%;
-            position: relative;
-            border-bottom: 3px solid #2196F3;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        }
-
-        #main-map {
-            height: 45vh;
-            width: 100%;
-            position: relative;
-        }
-
-        .controls-container {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            z-index: 5;
-        }
-
-        .control-button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 25px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-            min-width: 160px;
-            text-align: center;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .control-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
-        }
-
-        .control-button:active {
-            transform: translateY(0);
-        }
-
-        .control-button.active {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { box-shadow: 0 4px 15px rgba(240, 147, 251, 0.4); }
-            50% { box-shadow: 0 4px 25px rgba(240, 147, 251, 0.7); }
-        }
-
-        .control-button.clear {
-            background: linear-gradient(135deg, #ee5a24 0%, #f79f1f 100%);
-        }
-
-        .control-button.draw-point {
-            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-        }
-
-        .control-button.draw-line {
-            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
-        }
-
-        .control-button.draw-multiline {
-            background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%);
-        }
-
-        #search-container {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 5;
-            display: flex;
-            align-items: center;
-            background: white;
-            border-radius: 30px;
-            padding: 5px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s ease;
-        }
-
-        #search-container:focus-within {
-            box-shadow: 0 6px 30px rgba(33, 150, 243, 0.4);
-        }
-
-        #search-box {
-            border: none;
-            padding: 12px 20px;
-            font-size: 15px;
-            width: 250px;
-            outline: none;
-            background: transparent;
-        }
-
-        #search-button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-weight: 600;
-            margin-right: 5px;
-            transition: all 0.3s ease;
-        }
-
-        #search-button:hover {
-            transform: scale(1.05);
-        }
-
-        .info-panel {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 20px;
-            border-radius: 15px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-            z-index: 5;
-            max-width: 320px;
-            backdrop-filter: blur(10px);
-            display: none;
-            transition: all 0.3s ease;
-        }
-
-        .info-panel.active {
-            display: block;
-            animation: slideIn 0.3s ease;
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        .info-panel h3 {
-            color: #333;
-            margin-bottom: 15px;
-            font-size: 18px;
-            border-bottom: 2px solid #2196F3;
-            padding-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .info-item {
-            margin: 12px 0;
-            color: #555;
-            font-size: 14px;
-            line-height: 1.6;
-            padding: 8px;
-            background: rgba(33, 150, 243, 0.05);
-            border-radius: 8px;
-            transition: background 0.2s ease;
-        }
-
-        .info-item:hover {
-            background: rgba(33, 150, 243, 0.1);
-        }
-
-        .info-item strong {
-            color: #333;
-            font-weight: 600;
-            display: inline-block;
-            min-width: 80px;
-        }
-
-        .distance-value {
-            color: #2196F3;
-            font-size: 20px;
-            font-weight: bold;
-            display: block;
-            text-align: center;
-            margin: 10px 0;
-            padding: 10px;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-            border-radius: 10px;
-        }
-
-        .measurement-stats {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        .stat-box {
-            text-align: center;
-            padding: 10px;
-            background: rgba(33, 150, 243, 0.08);
-            border-radius: 8px;
-            border: 1px solid rgba(33, 150, 243, 0.2);
-        }
-
-        .stat-box .value {
-            font-size: 18px;
-            font-weight: bold;
-            color: #2196F3;
-        }
-
-        .stat-box .label {
-            font-size: 11px;
-            color: #666;
-            margin-top: 4px;
-        }
-
-        /* GeoJSON Panel Styles */
-        .geojson-panel {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 20px;
-            border-radius: 15px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-            z-index: 5;
-            max-width: 400px;
-            max-height: 60vh;
-            backdrop-filter: blur(10px);
-            display: none;
-            transition: all 0.3s ease;
-            overflow-y: auto;
-        }
-
-        .geojson-panel.active {
-            display: block;
-            animation: slideInLeft 0.3s ease;
-        }
-
-        @keyframes slideInLeft {
-            from {
-                opacity: 0;
-                transform: translateX(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        .geojson-panel h3 {
-            color: #333;
-            margin-bottom: 15px;
-            font-size: 18px;
-            border-bottom: 2px solid #4CAF50;
-            padding-bottom: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .geojson-output {
-            background: #f5f5f5;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 15px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            white-space: pre-wrap;
-            word-break: break-all;
-            max-height: 200px;
-            overflow-y: auto;
-            margin: 10px 0;
-        }
-
-        .copy-button {
-            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            margin-top: 10px;
-        }
-
-        .copy-button:hover {
-            transform: scale(1.05);
-        }
-
-        .drawing-controls {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 5;
-            display: flex;
-            gap: 10px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 10px;
-            border-radius: 25px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        .draw-button {
-            background: rgba(255, 255, 255, 0.9);
-            border: 2px solid #ddd;
-            color: #333;
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            font-size: 12px;
-        }
-
-        .draw-button:hover {
-            background: #f0f0f0;
-        }
-
-        .draw-button.active {
-            background: #2196F3;
-            color: white;
-            border-color: #2196F3;
-        }
-
-        .loading-spinner {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            display: none;
-            z-index: 10;
-        }
-
-        .loading-spinner.active {
-            display: block;
-        }
-
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 5px solid rgba(255, 255, 255, 0.3);
-            border-top-color: #2196F3;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .street-view-controls {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 5;
-            display: flex;
-            gap: 10px;
-        }
-
-        .view-button {
-            background: rgba(255, 255, 255, 0.9);
-            border: 2px solid #2196F3;
-            color: #2196F3;
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .view-button:hover {
-            background: #2196F3;
-            color: white;
-        }
-
-        .coordinates-display {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 10px 15px;
-            border-radius: 10px;
-            font-size: 12px;
-            z-index: 5;
-            font-family: 'Courier New', monospace;
-        }
-
-        .toast {
-            position: fixed;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%) translateY(100px);
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 12px 24px;
-            border-radius: 25px;
-            z-index: 1000;
-            opacity: 0;
-            transition: all 0.3s ease;
-        }
-
-        .toast.show {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .controls-container {
-                flex-direction: row;
-                bottom: 70px;
-                flex-wrap: wrap;
-            }
-
-            .control-button {
-                min-width: auto;
-                padding: 8px 12px;
-                font-size: 11px;
-            }
-
-            .drawing-controls {
-                top: 10px;
-                padding: 5px;
-            }
-
-            .draw-button {
-                padding: 6px 12px;
-                font-size: 10px;
-            }
-
-            .geojson-panel, .info-panel {
-                max-width: 90%;
-                left: 5%;
-                right: 5%;
-                top: 10px;
-            }
-        }
+        /* -- all CSS unchanged -- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; background: #1a1a1a; }
+        #street-view { height: 55vh; width: 100%; position: relative; border-bottom: 3px solid #2196F3; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); }
+        #main-map { height: 45vh; width: 100%; position: relative; }
+        .controls-container { position: absolute; bottom: 20px; left: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 5; }
+        .control-button { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px 20px; border-radius: 25px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); min-width: 160px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .control-button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6); }
+        .control-button:active { transform: translateY(0); }
+        .control-button.active { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { box-shadow: 0 4px 15px rgba(240, 147, 251, 0.4); } 50% { box-shadow: 0 4px 25px rgba(240, 147, 251, 0.7); } }
+        .control-button.clear { background: linear-gradient(135deg, #ee5a24 0%, #f79f1f 100%); }
+        .control-button.draw-point { background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); }
+        .control-button.draw-line { background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%); }
+        .control-button.draw-multiline { background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%); }
+        #search-container { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; align-items: center; background: white; border-radius: 30px; padding: 5px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); transition: all 0.3s ease; }
+        #search-container:focus-within { box-shadow: 0 6px 30px rgba(33, 150, 243, 0.4); }
+        #search-box { border: none; padding: 12px 20px; font-size: 15px; width: 250px; outline: none; background: transparent; }
+        #search-button { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px 20px; border-radius: 25px; cursor: pointer; font-weight: 600; margin-right: 5px; transition: all 0.3s ease; }
+        #search-button:hover { transform: scale(1.05); }
+        .info-panel { position: absolute; top: 20px; right: 20px; background: rgba(255, 255, 255, 0.95); padding: 20px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); z-index: 5; max-width: 320px; backdrop-filter: blur(10px); display: none; transition: all 0.3s ease; }
+        .info-panel.active { display: block; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+        .info-panel h3 { color: #333; margin-bottom: 15px; font-size: 18px; border-bottom: 2px solid #2196F3; padding-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .info-item { margin: 12px 0; color: #555; font-size: 14px; line-height: 1.6; padding: 8px; background: rgba(33, 150, 243, 0.05); border-radius: 8px; transition: background 0.2s ease; }
+        .info-item:hover { background: rgba(33, 150, 243, 0.1); }
+        .info-item strong { color: #333; font-weight: 600; display: inline-block; min-width: 80px; }
+        .distance-value { color: #2196F3; font-size: 20px; font-weight: bold; display: block; text-align: center; margin: 10px 0; padding: 10px; background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%); border-radius: 10px; }
+        .measurement-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .stat-box { text-align: center; padding: 10px; background: rgba(33, 150, 243, 0.08); border-radius: 8px; border: 1px solid rgba(33, 150, 243, 0.2); }
+        .stat-box .value { font-size: 18px; font-weight: bold; color: #2196F3; }
+        .stat-box .label { font-size: 11px; color: #666; margin-top: 4px; }
+        .geojson-panel { position: absolute; top: 20px; left: 20px; background: rgba(255, 255, 255, 0.95); padding: 20px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); z-index: 5; max-width: 400px; max-height: 60vh; backdrop-filter: blur(10px); display: none; transition: all 0.3s ease; overflow-y: auto; }
+        .geojson-panel.active { display: block; animation: slideInLeft 0.3s ease; }
+        @keyframes slideInLeft { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+        .geojson-panel h3 { color: #333; margin-bottom: 15px; font-size: 18px; border-bottom: 2px solid #4CAF50; padding-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+        .geojson-output { background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; margin: 10px 0; }
+        .copy-button { background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.3s ease; margin-top: 10px; }
+        .copy-button:hover { transform: scale(1.05); }
+        .drawing-controls { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; gap: 10px; background: rgba(255, 255, 255, 0.9); padding: 10px; border-radius: 25px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); }
+        .draw-button { background: rgba(255, 255, 255, 0.9); border: 2px solid #ddd; color: #333; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; font-size: 12px; }
+        .draw-button:hover { background: #f0f0f0; }
+        .draw-button.active { background: #2196F3; color: white; border-color: #2196F3; }
+        .loading-spinner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; z-index: 10; }
+        .loading-spinner.active { display: block; }
+        .spinner { width: 50px; height: 50px; border: 5px solid rgba(255, 255, 255, 0.3); border-top-color: #2196F3; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .street-view-controls { position: absolute; top: 20px; left: 20px; z-index: 5; display: flex; gap: 10px; }
+        .view-button { background: rgba(255, 255, 255, 0.9); border: 2px solid #2196F3; color: #2196F3; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
+        .view-button:hover { background: #2196F3; color: white; }
+        .coordinates-display { position: absolute; bottom: 20px; right: 20px; background: rgba(0, 0, 0, 0.7); color: white; padding: 10px 15px; border-radius: 10px; font-size: 12px; z-index: 5; font-family: 'Courier New', monospace; }
+        .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(100px); background: rgba(0, 0, 0, 0.8); color: white; padding: 12px 24px; border-radius: 25px; z-index: 1000; opacity: 0; transition: all 0.3s ease; }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        @media (max-width: 768px) { .controls-container { flex-direction: row; bottom: 70px; flex-wrap: wrap; } .control-button { min-width: auto; padding: 8px 12px; font-size: 11px; } .drawing-controls { top: 10px; padding: 5px; } .draw-button { padding: 6px 12px; font-size: 10px; } .geojson-panel, .info-panel { max-width: 90%; left: 5%; right: 5%; top: 10px; } }
     </style>
 </head>
 <body>
@@ -478,31 +69,28 @@
         </div>
     </div>
     
-    <div id="main-map">
-        
-    </div>
+    <div id="main-map"></div>
     
     <div class="drawing-controls">
-            <button id="pointBtn" class="draw-button" onclick="setDrawingMode('point')">
-                📍 Point
-            </button>
-            <button id="lineBtn" class="draw-button" onclick="setDrawingMode('line')">
-                📏 Line
-            </button>
-            <button id="multilineBtn" class="draw-button" onclick="setDrawingMode('multiline')">
-                〰️ MultiLine
-            </button>
-            <button class="draw-button" onclick="clearDrawings()">
-                🗑️ Clear
-            </button>
-            <button class="draw-button" onclick="toggleGeoJSONPanel()">
-                📋 GeoJSON
-            </button>
-            <!-- Added End MultiLine button -->
-            <button id="endMultilineBtn" class="draw-button" style="display:none;" onclick="finishMultilineFromButton()">
-                ✅ End MultiLine
-            </button>
-        </div>
+        <button id="pointBtn" class="draw-button" onclick="setDrawingMode('point')">
+            📍 Point
+        </button>
+        <button id="lineBtn" class="draw-button" onclick="setDrawingMode('line')">
+            📏 Line
+        </button>
+        <button id="multilineBtn" class="draw-button" onclick="setDrawingMode('multiline')">
+            〰️ MultiLine
+        </button>
+        <button class="draw-button" onclick="clearDrawings()">
+            🗑️ Clear
+        </button>
+        <button class="draw-button" onclick="toggleGeoJSONPanel()">
+            📋 GeoJSON
+        </button>
+        <button id="endMultilineBtn" class="draw-button" style="display:none;" onclick="finishMultilineFromButton()">
+            ✅ End MultiLine
+        </button>
+    </div>
     
     <div class="controls-container">
         <button id="measureBtn" class="control-button" onclick="toggleMeasurement()">
@@ -580,7 +168,6 @@
         let streetView;
         let measurementActive = false;
         let searchMarker;
-        
         // Drawing variables
         let drawingMode = null;
         let drawnFeatures = [];
@@ -591,23 +178,13 @@
 
         function initMap() {
             showLoading(true);
-            
             const defaultCenter = { lat: 38.902706, lng: -77.030629 };
-            
             const mapOptions = {
                 center: defaultCenter,
                 zoom: 18,
                 styles: [
-                    {
-                        featureType: "poi",
-                        elementType: "labels",
-                        stylers: [{ visibility: "off" }]
-                    },
-                    {
-                        featureType: "transit",
-                        elementType: "labels.icon",
-                        stylers: [{ visibility: "off" }]
-                    }
+                    { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] },
+                    { featureType: "transit", elementType: "labels.icon", stylers: [{ visibility: "off" }] }
                 ],
                 mapTypeControl: true,
                 mapTypeControlOptions: {
@@ -617,121 +194,64 @@
                 fullscreenControl: false,
                 streetViewControl: true,
                 zoomControl: true,
-                zoomControlOptions: {
-                    position: google.maps.ControlPosition.RIGHT_CENTER
-                }
+                zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_CENTER }
             };
-
             mainMap = new google.maps.Map(document.getElementById("main-map"), mapOptions);
-            
-            // Initialize Street View
             streetView = new google.maps.StreetViewPanorama(
                 document.getElementById("street-view"),
-                {
-                    position: defaultCenter,
-                    pov: { heading: 0, pitch: 0 },
-                    zoom: 1,
-                    addressControl: true,
-                    linksControl: true,
-                    panControl: true,
-                    enableCloseButton: false
-                }
+                { position: defaultCenter, pov: { heading: 0, pitch: 0 }, zoom: 1, addressControl: true, linksControl: true, panControl: true, enableCloseButton: false }
             );
-            
             mainMap.setStreetView(streetView);
-            
-            // Load GeoJSON data if available
             if (typeof yourGeoJsonData !== 'undefined') {
                 mainMap.data.addGeoJson(yourGeoJsonData);
                 styleGeoJsonData();
             }
-            
-            // Initialize info window
             infoWindow = new google.maps.InfoWindow();
-            
-            // Set up event listeners
             setupEventListeners();
-            
-            // Update coordinates display
-            mainMap.addListener('mousemove', (e) => {
-                updateCoordinatesDisplay(e.latLng);
-            });
-            
+            mainMap.addListener('mousemove', (e) => { updateCoordinatesDisplay(e.latLng); });
             showLoading(false);
             showToast('Map loaded successfully!');
         }
 
         function styleGeoJsonData() {
-            mainMap.data.setStyle((feature) => {
-                return {
-                    icon: {
-                        url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
-                        scaledSize: new google.maps.Size(32, 32),
-                        anchor: new google.maps.Point(16, 32)
-                    },
-                    animation: google.maps.Animation.DROP
-                };
-            });
-
+            mainMap.data.setStyle((feature) => ({
+                icon: { url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png", scaledSize: new google.maps.Size(32, 32), anchor: new google.maps.Point(16, 32) },
+                animation: google.maps.Animation.DROP
+            }));
             mainMap.data.addListener("click", (event) => {
                 const content = `
                     <div class="custom-info-window">
                         <h4>Location Details</h4>
-                        <div class="info-row">
-                            <strong>Object ID:</strong> ${event.feature.getProperty("object") || "N/A"}
-                        </div>
-                        <div class="info-row">
-                            <strong>Route:</strong> ${event.feature.getProperty("area") || "N/A"}
-                        </div>
-                        <div class="info-row">
-                            <strong>Position:</strong> ${event.latLng.toUrlValue(6)}
-                        </div>
+                        <div class="info-row"><strong>Object ID:</strong> ${event.feature.getProperty("object") || "N/A"}</div>
+                        <div class="info-row"><strong>Route:</strong> ${event.feature.getProperty("area") || "N/A"}</div>
+                        <div class="info-row"><strong>Position:</strong> ${event.latLng.toUrlValue(6)}</div>
                     </div>`;
                 infoWindow.setContent(content);
                 infoWindow.setPosition(event.latLng);
                 infoWindow.open(mainMap);
-                
-                // Update street view
                 streetView.setPosition(event.latLng);
             });
         }
 
         function setupEventListeners() {
-            // Search functionality
             const searchBox = document.getElementById("search-box");
-            searchBox.addEventListener("keypress", (e) => {
-                if (e.key === "Enter") {
-                    performSearch();
-                }
-            });
-
-            // Map click listeners for drawing and measurement
+            searchBox.addEventListener("keypress", (e) => { if (e.key === "Enter") performSearch(); });
             mainMap.addListener('click', (e) => {
                 if (measurementActive && markerA && markerB) {
-                    // Measurement mode
                     const distToA = google.maps.geometry.spherical.computeDistanceBetween(e.latLng, markerA.getPosition());
                     const distToB = google.maps.geometry.spherical.computeDistanceBetween(e.latLng, markerB.getPosition());
-                    
-                    if (distToA <= distToB) {
-                        markerA.setPosition(e.latLng);
-                    } else {
-                        markerB.setPosition(e.latLng);
-                    }
+                    if (distToA <= distToB) markerA.setPosition(e.latLng);
+                    else markerB.setPosition(e.latLng);
                     updateDistance();
                 } else if (drawingMode) {
-                    // Drawing mode
                     handleDrawingClick(e.latLng);
                 }
             });
-
-            // Right-click to finish multiline segment
             mainMap.addListener('rightclick', (e) => {
                 if (drawingMode === 'multiline' && currentLineCoords.length > 1) {
                     finishMultilineSegment();
                 }
             });
-
-            // Double-click to finish multiline entirely
             mainMap.addListener('dblclick', (e) => {
                 if (drawingMode === 'multiline' && multilineCoords.length > 0) {
                     finishMultiline();
@@ -740,7 +260,7 @@
             });
         }
 
-        // Drawing functions
+        // --- Drawing functions with End Button ---
         function setDrawingMode(mode) {
             clearDrawingMode();
             drawingMode = mode;
@@ -748,7 +268,6 @@
             document.getElementById(mode + 'Btn').classList.add('active');
             mainMap.setOptions({ draggableCursor: 'crosshair' });
             showToast(`${mode.charAt(0).toUpperCase() + mode.slice(1)} drawing mode activated`);
-            // Show End MultiLine button only for multiline mode
             document.getElementById('endMultilineBtn').style.display = (mode === 'multiline') ? 'inline-block' : 'none';
         }
 
@@ -765,15 +284,9 @@
 
         function handleDrawingClick(latLng) {
             switch (drawingMode) {
-                case 'point':
-                    createPoint(latLng);
-                    break;
-                case 'line':
-                    addLinePoint(latLng);
-                    break;
-                case 'multiline':
-                    addMultilinePoint(latLng);
-                    break;
+                case 'point': createPoint(latLng); break;
+                case 'line': addLinePoint(latLng); break;
+                case 'multiline': addMultilinePoint(latLng); break;
             }
         }
 
@@ -781,60 +294,27 @@
             const marker = new google.maps.Marker({
                 position: latLng,
                 map: mainMap,
-                icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 8,
-                    fillColor: "#4CAF50",
-                    fillOpacity: 0.9,
-                    strokeColor: "#ffffff",
-                    strokeWeight: 2
-                },
+                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: "#4CAF50", fillOpacity: 0.9, strokeColor: "#ffffff", strokeWeight: 2 },
                 title: "Point Feature"
             });
-
-            const geojson = {
-                coordinates: [latLng.lng(), latLng.lat()],
-                type: "Point"
-            };
-
-            drawnFeatures.push({
-                type: 'point',
-                marker: marker,
-                geojson: geojson
-            });
-
+            const geojson = { coordinates: [latLng.lng(), latLng.lat()], type: "Point" };
+            drawnFeatures.push({ type: 'point', marker: marker, geojson: geojson });
             updateGeoJSONDisplay();
             showToast('Point created!');
         }
 
         function addLinePoint(latLng) {
             currentLineCoords.push(latLng);
-            
-            // Create marker for the point
             const marker = new google.maps.Marker({
                 position: latLng,
                 map: mainMap,
-                icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 6,
-                    fillColor: "#2196F3",
-                    fillOpacity: 0.9,
-                    strokeColor: "#ffffff",
-                    strokeWeight: 2
-                }
+                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: "#2196F3", fillOpacity: 0.9, strokeColor: "#ffffff", strokeWeight: 2 }
             });
-
             if (currentLineCoords.length === 1) {
-                // First point
-                currentLine = {
-                    markers: [marker],
-                    polyline: null
-                };
+                currentLine = { markers: [marker], polyline: null };
                 showToast('Line started - click to add second point');
             } else if (currentLineCoords.length === 2) {
-                // Second point - complete the line
                 currentLine.markers.push(marker);
-                
                 const polyline = new google.maps.Polyline({
                     path: currentLineCoords,
                     geodesic: true,
@@ -843,25 +323,11 @@
                     strokeWeight: 3,
                     map: mainMap
                 });
-                
                 currentLine.polyline = polyline;
-
-                const geojson = {
-                    coordinates: currentLineCoords.map(coord => [coord.lng(), coord.lat()]),
-                    type: "LineString"
-                };
-
-                drawnFeatures.push({
-                    type: 'line',
-                    markers: currentLine.markers,
-                    polyline: polyline,
-                    geojson: geojson
-                });
-
-                // Reset for next line
+                const geojson = { coordinates: currentLineCoords.map(coord => [coord.lng(), coord.lat()]), type: "LineString" };
+                drawnFeatures.push({ type: 'line', markers: currentLine.markers, polyline: polyline, geojson: geojson });
                 currentLine = null;
                 currentLineCoords = [];
-                
                 updateGeoJSONDisplay();
                 showToast('Line completed!');
             }
@@ -872,23 +338,13 @@
             const marker = new google.maps.Marker({
                 position: latLng,
                 map: mainMap,
-                icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 6,
-                    fillColor: "#9C27B0",
-                    fillOpacity: 0.9,
-                    strokeColor: "#ffffff",
-                    strokeWeight: 2
-                }
+                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: "#9C27B0", fillOpacity: 0.9, strokeColor: "#ffffff", strokeWeight: 2 }
             });
-
             if (!isDrawingMultiline) {
                 isDrawingMultiline = true;
                 multilineCoords = [];
                 showToast('MultiLine started - right-click to finish segment, double-click or press "End MultiLine" to finish');
             }
-
-            // Update or create current segment polyline
             if (currentLineCoords.length >= 2) {
                 if (currentLine && currentLine.polyline) {
                     currentLine.polyline.setMap(null);
@@ -904,9 +360,7 @@
                         { icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 4 }, offset: '0', repeat: '20px' }
                     ]
                 });
-                if (!currentLine) {
-                    currentLine = { markers: [], polylines: [] };
-                }
+                if (!currentLine) currentLine = { markers: [], polylines: [] };
                 currentLine.markers.push(marker);
                 currentLine.polylines = currentLine.polylines || [];
                 currentLine.polylines.push(polyline);
@@ -925,7 +379,6 @@
             }
         }
 
-        // New function for explicit completion via button
         function finishMultilineFromButton() {
             if (drawingMode === 'multiline') {
                 finishMultiline();
@@ -935,14 +388,10 @@
 
         function finishMultiline() {
             if (multilineCoords.length > 0 || currentLineCoords.length > 1) {
-                // Add current segment if it has points
                 if (currentLineCoords.length > 1) {
                     multilineCoords.push(currentLineCoords.map(coord => [coord.lng(), coord.lat()]));
                 }
-                const geojson = {
-                    coordinates: multilineCoords,
-                    type: "MultiLineString"
-                };
+                const geojson = { coordinates: multilineCoords, type: "MultiLineString" };
                 drawnFeatures.push({
                     type: 'multiline',
                     markers: currentLine ? currentLine.markers : [],
@@ -959,35 +408,17 @@
         }
 
         function clearDrawings() {
-            // Remove all drawn features from map
             drawnFeatures.forEach(feature => {
-                if (feature.marker) {
-                    feature.marker.setMap(null);
-                }
-                if (feature.markers) {
-                    feature.markers.forEach(marker => marker.setMap(null));
-                }
-                if (feature.polyline) {
-                    feature.polyline.setMap(null);
-                }
-                if (feature.polylines) {
-                    feature.polylines.forEach(polyline => polyline.setMap(null));
-                }
+                if (feature.marker) feature.marker.setMap(null);
+                if (feature.markers) feature.markers.forEach(marker => marker.setMap(null));
+                if (feature.polyline) feature.polyline.setMap(null);
+                if (feature.polylines) feature.polylines.forEach(polyline => polyline.setMap(null));
             });
-
-            // Clear current drawing state
             if (currentLine) {
-                if (currentLine.markers) {
-                    currentLine.markers.forEach(marker => marker.setMap(null));
-                }
-                if (currentLine.polyline) {
-                    currentLine.polyline.setMap(null);
-                }
-                if (currentLine.polylines) {
-                    currentLine.polylines.forEach(polyline => polyline.setMap(null));
-                }
+                if (currentLine.markers) currentLine.markers.forEach(marker => marker.setMap(null));
+                if (currentLine.polyline) currentLine.polyline.setMap(null);
+                if (currentLine.polylines) currentLine.polylines.forEach(polyline => polyline.setMap(null));
             }
-
             drawnFeatures = [];
             currentLine = null;
             currentLineCoords = [];
@@ -997,7 +428,8 @@
             showToast('All drawings cleared!');
         }
 
-        // ... (rest of your code unchanged, like measurement and utility functions)
+        // --- Other utility and map functions unchanged ---
+        // (You would retain previous measurement, geojson display, toast, etc. logic here)
     </script>
 </body>
 </html>
