@@ -498,6 +498,10 @@
             <button class="draw-button" onclick="toggleGeoJSONPanel()">
                 📋 GeoJSON
             </button>
+            <!-- Added End MultiLine button -->
+            <button id="endMultilineBtn" class="draw-button" style="display:none;" onclick="finishMultilineFromButton()">
+                ✅ End MultiLine
+            </button>
         </div>
     
     <div class="controls-container">
@@ -731,25 +735,21 @@
             mainMap.addListener('dblclick', (e) => {
                 if (drawingMode === 'multiline' && multilineCoords.length > 0) {
                     finishMultiline();
+                    clearDrawingMode();
                 }
             });
         }
 
         // Drawing functions
         function setDrawingMode(mode) {
-            // Clear previous mode
             clearDrawingMode();
-            
             drawingMode = mode;
-            
-            // Update button states
             document.querySelectorAll('.draw-button').forEach(btn => btn.classList.remove('active'));
             document.getElementById(mode + 'Btn').classList.add('active');
-            
-            // Update cursor
             mainMap.setOptions({ draggableCursor: 'crosshair' });
-            
             showToast(`${mode.charAt(0).toUpperCase() + mode.slice(1)} drawing mode activated`);
+            // Show End MultiLine button only for multiline mode
+            document.getElementById('endMultilineBtn').style.display = (mode === 'multiline') ? 'inline-block' : 'none';
         }
 
         function clearDrawingMode() {
@@ -758,12 +758,9 @@
             currentLineCoords = [];
             multilineCoords = [];
             isDrawingMultiline = false;
-            
-            // Reset cursor
             mainMap.setOptions({ draggableCursor: null });
-            
-            // Clear active button states
             document.querySelectorAll('.draw-button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('endMultilineBtn').style.display = 'none';
         }
 
         function handleDrawingClick(latLng) {
@@ -872,8 +869,6 @@
 
         function addMultilinePoint(latLng) {
             currentLineCoords.push(latLng);
-            
-            // Create marker for the point
             const marker = new google.maps.Marker({
                 position: latLng,
                 map: mainMap,
@@ -890,17 +885,14 @@
             if (!isDrawingMultiline) {
                 isDrawingMultiline = true;
                 multilineCoords = [];
-                showToast('MultiLine started - right-click to finish segment, double-click to finish');
+                showToast('MultiLine started - right-click to finish segment, double-click or press "End MultiLine" to finish');
             }
 
             // Update or create current segment polyline
             if (currentLineCoords.length >= 2) {
-                // Remove old polyline if exists
                 if (currentLine && currentLine.polyline) {
                     currentLine.polyline.setMap(null);
                 }
-                
-                // Create new polyline for current segment
                 const polyline = new google.maps.Polyline({
                     path: currentLineCoords,
                     geodesic: true,
@@ -912,7 +904,6 @@
                         { icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 4 }, offset: '0', repeat: '20px' }
                     ]
                 });
-                
                 if (!currentLine) {
                     currentLine = { markers: [], polylines: [] };
                 }
@@ -928,41 +919,40 @@
 
         function finishMultilineSegment() {
             if (currentLineCoords.length > 1) {
-                // Add current segment to multiline coordinates
                 multilineCoords.push(currentLineCoords.map(coord => [coord.lng(), coord.lat()]));
-                
-                // Reset current line for next segment
                 currentLineCoords = [];
-                
                 showToast(`Segment ${multilineCoords.length} completed - click to start new segment`);
             }
         }
 
+        // New function for explicit completion via button
+        function finishMultilineFromButton() {
+            if (drawingMode === 'multiline') {
+                finishMultiline();
+                clearDrawingMode();
+            }
+        }
+
         function finishMultiline() {
-            if (multilineCoords.length > 0) {
+            if (multilineCoords.length > 0 || currentLineCoords.length > 1) {
                 // Add current segment if it has points
                 if (currentLineCoords.length > 1) {
                     multilineCoords.push(currentLineCoords.map(coord => [coord.lng(), coord.lat()]));
                 }
-
                 const geojson = {
                     coordinates: multilineCoords,
                     type: "MultiLineString"
                 };
-
                 drawnFeatures.push({
                     type: 'multiline',
                     markers: currentLine ? currentLine.markers : [],
                     polylines: currentLine ? currentLine.polylines : [],
                     geojson: geojson
                 });
-
-                // Reset multiline drawing state
                 currentLine = null;
                 currentLineCoords = [];
                 multilineCoords = [];
                 isDrawingMultiline = false;
-                
                 updateGeoJSONDisplay();
                 showToast('MultiLine completed!');
             }
@@ -998,12 +988,13 @@
                 }
             }
 
-            // Reset all variables
             drawnFeatures = [];
-            clearDrawingMode();
-            
+            currentLine = null;
+            currentLineCoords = [];
+            multilineCoords = [];
+            isDrawingMultiline = false;
             updateGeoJSONDisplay();
-            showToast('All drawings cleared');
+            showToast('All drawings cleared!');
         }
 
         function updateGeoJSONDisplay() {
