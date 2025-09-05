@@ -498,10 +498,6 @@
             <button class="draw-button" onclick="toggleGeoJSONPanel()">
                 📋 GeoJSON
             </button>
-            <!-- Add End MultiLine button for explicit completion -->
-            <button id="endMultilineBtn" class="draw-button" style="display:none;" onclick="finishMultilineFromButton()">
-                ✅ End MultiLine
-            </button>
         </div>
     
     <div class="controls-container">
@@ -573,7 +569,6 @@
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCKo-4KyqDSNOfY5uP--H9IIb_G56WavvQ&libraries=places,geometry,drawing&callback=initMap" async defer></script>
     
     <script>
-    <script>
         let mainMap;
         let markerA, markerB;
         let line;
@@ -589,134 +584,6 @@
         let currentLineCoords = [];
         let multilineCoords = [];
         let isDrawingMultiline = false;
-
-        // Show/hide End MultiLine button based on mode
-        function setDrawingMode(mode) {
-            clearDrawingMode();
-            drawingMode = mode;
-            document.querySelectorAll('.draw-button').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(mode + 'Btn').classList.add('active');
-            mainMap.setOptions({ draggableCursor: 'crosshair' });
-            showToast(`${mode.charAt(0).toUpperCase() + mode.slice(1)} drawing mode activated`);
-            // Show End MultiLine button only for multiline mode
-            document.getElementById('endMultilineBtn').style.display = (mode === 'multiline') ? 'inline-block' : 'none';
-        }
-
-        function clearDrawingMode() {
-            drawingMode = null;
-            currentLine = null;
-            currentLineCoords = [];
-            multilineCoords = [];
-            isDrawingMultiline = false;
-            mainMap.setOptions({ draggableCursor: null });
-            document.querySelectorAll('.draw-button').forEach(btn => btn.classList.remove('active'));
-            document.getElementById('endMultilineBtn').style.display = 'none';
-        }
-
-        function handleDrawingClick(latLng) {
-            switch (drawingMode) {
-                case 'point':
-                    createPoint(latLng);
-                    break;
-                case 'line':
-                    addLinePoint(latLng);
-                    break;
-                case 'multiline':
-                    addMultilinePoint(latLng);
-                    break;
-            }
-        }
-
-        function addMultilinePoint(latLng) {
-            currentLineCoords.push(latLng);
-            const marker = new google.maps.Marker({
-                position: latLng,
-                map: mainMap,
-                icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 6,
-                    fillColor: "#9C27B0",
-                    fillOpacity: 0.9,
-                    strokeColor: "#ffffff",
-                    strokeWeight: 2
-                }
-            });
-
-            if (!isDrawingMultiline) {
-                isDrawingMultiline = true;
-                multilineCoords = [];
-                showToast('MultiLine started - right-click to finish segment, click "End MultiLine" to finish');
-            }
-
-            // Update or create current segment polyline
-            if (currentLineCoords.length >= 2) {
-                if (currentLine && currentLine.polyline) {
-                    currentLine.polyline.setMap(null);
-                }
-                const polyline = new google.maps.Polyline({
-                    path: currentLineCoords,
-                    geodesic: true,
-                    strokeColor: "#9C27B0",
-                    strokeOpacity: 1.0,
-                    strokeWeight: 3,
-                    map: mainMap,
-                    strokePattern: [
-                        { icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 4 }, offset: '0', repeat: '20px' }
-                    ]
-                });
-                if (!currentLine) {
-                    currentLine = { markers: [], polylines: [] };
-                }
-                currentLine.markers.push(marker);
-                currentLine.polylines = currentLine.polylines || [];
-                currentLine.polylines.push(polyline);
-            } else if (!currentLine) {
-                currentLine = { markers: [marker], polylines: [] };
-            } else {
-                currentLine.markers.push(marker);
-            }
-        }
-
-        function finishMultilineSegment() {
-            if (currentLineCoords.length > 1) {
-                multilineCoords.push(currentLineCoords.map(coord => [coord.lng(), coord.lat()]));
-                currentLineCoords = [];
-                showToast(`Segment ${multilineCoords.length} completed - click to start new segment`);
-            }
-        }
-
-        // New function for explicit completion via button
-        function finishMultilineFromButton() {
-            if (drawingMode === 'multiline') {
-                finishMultiline();
-                clearDrawingMode();
-            }
-        }
-
-        function finishMultiline() {
-            if (multilineCoords.length > 0 || currentLineCoords.length > 1) {
-                // Add current segment if it has points
-                if (currentLineCoords.length > 1) {
-                    multilineCoords.push(currentLineCoords.map(coord => [coord.lng(), coord.lat()]));
-                }
-                const geojson = {
-                    coordinates: multilineCoords,
-                    type: "MultiLineString"
-                };
-                drawnFeatures.push({
-                    type: 'multiline',
-                    markers: currentLine ? currentLine.markers : [],
-                    polylines: currentLine ? currentLine.polylines : [],
-                    geojson: geojson
-                });
-                currentLine = null;
-                currentLineCoords = [];
-                multilineCoords = [];
-                isDrawingMultiline = false;
-                updateGeoJSONDisplay();
-                showToast('MultiLine completed!');
-            }
-        }
 
         function initMap() {
             showLoading(true);
