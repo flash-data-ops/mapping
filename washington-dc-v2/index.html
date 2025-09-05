@@ -1,0 +1,1677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Washington DC On-street Map - Enhanced with Drawing Tools</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: #1a1a1a;
+        }
+
+        #street-view {
+            height: 55vh;
+            width: 100%;
+            position: relative;
+            border-bottom: 3px solid #2196F3;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        #main-map {
+            height: 45vh;
+            width: 100%;
+            position: relative;
+        }
+
+        /* Left Sidebar Styles */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -350px;
+            width: 350px;
+            height: 100vh;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(240, 240, 240, 0.98) 100%);
+            backdrop-filter: blur(10px);
+            box-shadow: 2px 0 20px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            border-right: 3px solid #2196F3;
+        }
+
+        .sidebar.expanded {
+            left: 0;
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 1001;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .sidebar-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .sidebar.expanded + .sidebar-toggle {
+            left: 370px;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 2px solid #e0e0e0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+        }
+
+        .sidebar-header h2 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .sidebar-section {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .sidebar-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+            border-bottom: 2px solid #2196F3;
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+            width: 100%;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .control-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.5);
+        }
+
+        .control-button:active {
+            transform: translateY(0);
+        }
+
+        .control-button.active {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 2px 10px rgba(240, 147, 251, 0.4); }
+            50% { box-shadow: 0 4px 20px rgba(240, 147, 251, 0.7); }
+        }
+
+        .control-button.clear {
+            background: linear-gradient(135deg, #ee5a24 0%, #f79f1f 100%);
+        }
+
+        .control-button.draw-point {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        }
+
+        .control-button.draw-line {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+        }
+
+        .control-button.draw-multiline {
+            background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%);
+        }
+
+        .drawing-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .draw-button {
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #ddd;
+            color: #333;
+            padding: 10px 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            font-size: 11px;
+            text-align: center;
+        }
+
+        .draw-button:hover {
+            background: #f0f0f0;
+        }
+
+        .draw-button.active {
+            background: #2196F3;
+            color: white;
+            border-color: #2196F3;
+        }
+
+        .draw-button.full-width {
+            grid-column: 1 / -1;
+        }
+
+        #search-container {
+            display: flex;
+            align-items: center;
+            background: white;
+            border-radius: 8px;
+            padding: 5px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            margin-bottom: 10px;
+        }
+
+        #search-container:focus-within {
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+        }
+
+        #search-box {
+            border: none;
+            padding: 10px 12px;
+            font-size: 14px;
+            flex: 1;
+            outline: none;
+            background: transparent;
+        }
+
+        #search-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-right: 5px;
+            transition: all 0.3s ease;
+            font-size: 12px;
+        }
+
+        #search-button:hover {
+            transform: scale(1.05);
+        }
+
+        .info-panel {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            display: none;
+            transition: all 0.3s ease;
+            margin-top: 15px;
+        }
+
+        .info-panel.active {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .info-panel h4 {
+            color: #333;
+            margin-bottom: 12px;
+            font-size: 16px;
+            border-bottom: 2px solid #2196F3;
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-item {
+            margin: 10px 0;
+            color: #555;
+            font-size: 13px;
+            line-height: 1.5;
+            padding: 8px;
+            background: rgba(33, 150, 243, 0.05);
+            border-radius: 6px;
+            transition: background 0.2s ease;
+        }
+
+        .info-item:hover {
+            background: rgba(33, 150, 243, 0.1);
+        }
+
+        .info-item strong {
+            color: #333;
+            font-weight: 600;
+            display: inline-block;
+            min-width: 60px;
+        }
+
+        .distance-value {
+            color: #2196F3;
+            font-size: 18px;
+            font-weight: bold;
+            display: block;
+            text-align: center;
+            margin: 10px 0;
+            padding: 10px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-radius: 8px;
+        }
+
+        .measurement-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .stat-box {
+            text-align: center;
+            padding: 8px;
+            background: rgba(33, 150, 243, 0.08);
+            border-radius: 6px;
+            border: 1px solid rgba(33, 150, 243, 0.2);
+        }
+
+        .stat-box .value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #2196F3;
+        }
+
+        .stat-box .label {
+            font-size: 10px;
+            color: #666;
+            margin-top: 3px;
+        }
+
+        /* GeoJSON Panel Styles */
+        .geojson-panel {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            display: none;
+            transition: all 0.3s ease;
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .geojson-panel.active {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        .geojson-panel h4 {
+            color: #333;
+            margin-bottom: 12px;
+            font-size: 16px;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .geojson-output {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 150px;
+            overflow-y: auto;
+            margin: 8px 0;
+        }
+
+        .copy-button {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 2px;
+        }
+
+        .copy-button:hover {
+            transform: scale(1.05);
+        }
+
+        /* Keyboard Shortcuts Styles */
+        .shortcuts-list {
+            display: grid;
+            gap: 8px;
+        }
+
+        .shortcut-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 6px;
+            font-size: 12px;
+            transition: all 0.2s ease;
+            border: 1px solid rgba(33, 150, 243, 0.1);
+        }
+
+        .shortcut-item:hover {
+            background: rgba(33, 150, 243, 0.05);
+            border-color: rgba(33, 150, 243, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .shortcut-description {
+            color: #555;
+            font-weight: 500;
+        }
+
+        .shortcut-keys {
+            display: flex;
+            gap: 2px;
+            align-items: center;
+        }
+
+        .key {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+            min-width: 20px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        .key.modifier {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .key-separator {
+            color: #666;
+            font-size: 10px;
+            margin: 0 2px;
+        }
+
+        .shortcuts-toggle {
+            background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(255, 107, 107, 0.3);
+            width: 100%;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .shortcuts-toggle:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.5);
+        }
+
+        .shortcuts-panel {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            display: none;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .shortcuts-panel.active {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        .shortcuts-panel h4 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+            border-bottom: 2px solid #FF6B6B;
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .shortcuts-category {
+            margin-bottom: 15px;
+        }
+
+        .shortcuts-category h5 {
+            color: #555;
+            font-size: 13px;
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .loading-spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: none;
+            z-index: 10;
+        }
+
+        .loading-spinner.active {
+            display: block;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #2196F3;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            z-index: 1000;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 300px;
+                left: -300px;
+            }
+            
+            .sidebar.expanded + .sidebar-toggle {
+                left: 320px;
+            }
+            
+            .drawing-controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .measurement-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar Toggle Button -->
+    <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+
+    <!-- Left Sidebar -->
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <h2>🛠️ Map Tools</h2>
+        </div>
+
+        <!-- Search Section -->
+        <div class="sidebar-section">
+            <h3><span>🔍</span> Search</h3>
+            <div id="search-container">
+                <input type="search" id="search-box" placeholder="Search by Object ID..." />
+                <button id="search-button" onclick="performSearch()">Search</button>
+            </div>
+        </div>
+
+        <!-- Measurement Section -->
+        <div class="sidebar-section">
+            <h3><span>📏</span> Measurement Tool</h3>
+            <button id="measureBtn" class="control-button" onclick="toggleMeasurement()">
+                <span id="measureIcon">📏</span>
+                <span id="measureText">Start Measuring</span>
+            </button>
+            <div id="info-panel" class="info-panel">
+                <h4><span>📏</span> Distance Measurement</h4>
+                <div id="measurement-info">
+                    <div class="distance-value" id="main-distance">0.00 m</div>
+                    <div class="measurement-stats">
+                        <div class="stat-box">
+                            <div class="value" id="feet-value">0.00</div>
+                            <div class="label">Feet</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="value" id="parallel-cars">0.0</div>
+                            <div class="label">Cars (∥)</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="value" id="perp-cars">0.0</div>
+                            <div class="label">Cars (⊥)</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="value" id="walking-time">0</div>
+                            <div class="label">Walk (sec)</div>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <strong>Point A:</strong><br>
+                        <span id="point-a-coords">-</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>Point B:</strong><br>
+                        <span id="point-b-coords">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Drawing Tools Section -->
+        <div class="sidebar-section">
+            <h3><span>✏️</span> Drawing Tools</h3>
+            <div class="drawing-controls">
+                <button id="pointBtn" class="draw-button" onclick="setDrawingMode('point')">
+                    📍 Point
+                </button>
+                <button id="lineBtn" class="draw-button" onclick="setDrawingMode('line')">
+                    📏 Line
+                </button>
+                <button id="multilineBtn" class="draw-button" onclick="setDrawingMode('multiline')">
+                    〰️ MultiLine
+                </button>
+                <button class="draw-button" onclick="clearDrawings()">
+                    🗑️ Clear
+                </button>
+                <button class="draw-button" onclick="toggleGeoJSONPanel()">
+                    📋 GeoJSON
+                </button>
+                <button id="endMultilineBtn" class="draw-button full-width" style="display:none;" onclick="finishMultilineFromButton()">
+                    ✅ End MultiLine
+                </button>
+            </div>
+            
+            <div id="geojson-panel" class="geojson-panel">
+                <h4>
+                    <span>📋 Generated GeoJSON</span>
+                    <button class="copy-button" onclick="copyAllGeoJSON()">Copy All</button>
+                </h4>
+                <div id="geojson-list"></div>
+            </div>
+        </div>
+
+        <!-- Keyboard Shortcuts Section -->
+        <div class="sidebar-section">
+            <h3><span>⌨️</span> Keyboard Shortcuts</h3>
+            <button class="shortcuts-toggle" onclick="toggleShortcutsPanel()">
+                <span>⌨️</span>
+                <span>Show Shortcuts</span>
+            </button>
+            <div id="shortcuts-panel" class="shortcuts-panel">
+                <h4><span>⌨️</span> Keyboard Shortcuts</h4>
+                
+                <div class="shortcuts-category">
+                    <h5><span>🗺️</span> Map Controls</h5>
+                    <div class="shortcuts-list">
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">Toggle Sidebar</span>
+                            <div class="shortcut-keys">
+                                <span class="key modifier">Ctrl</span>
+                                <span class="key-separator">+</span>
+                                <span class="key">S</span>
+                            </div>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">Focus Search</span>
+                            <div class="shortcut-keys">
+                                <span class="key modifier">Ctrl</span>
+                                <span class="key-separator">+</span>
+                                <span class="key">F</span>
+                            </div>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">Clear Everything</span>
+                            <div class="shortcut-keys">
+                                <span class="key modifier">Ctrl</span>
+                                <span class="key-separator">+</span>
+                                <span class="key">K</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="shortcuts-category">
+                    <h5><span>📏</span> Measurement</h5>
+                    <div class="shortcuts-list">
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">Toggle Measurement</span>
+                            <div class="shortcut-keys">
+                                <span class="key modifier">Ctrl</span>
+                                <span class="key-separator">+</span>
+                                <span class="key">M</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="shortcuts-category">
+                    <h5><span>✏️</span> Drawing Tools</h5>
+                    <div class="shortcuts-list">
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">Point Tool</span>
+                            <div class="shortcut-keys">
+                                <span class="key modifier">Ctrl</span>
+                                <span class="key-separator">+</span>
+                                <span class="key">P</span>
+                            </div>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">Line Tool</span>
+                            <div class="shortcut-keys">
+                                <span class="key modifier">Ctrl</span>
+                                <span class="key-separator">+</span>
+                                <span class="key">L</span>
+                            </div>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">MultiLine Tool</span>
+                            <div class="shortcut-keys">
+                                <span class="key modifier">Ctrl</span>
+                                <span class="key-separator">+</span>
+                                <span class="key">U</span>
+                            </div>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">Toggle GeoJSON</span>
+                            <div class="shortcut-keys">
+                                <span class="key modifier">Ctrl</span>
+                                <span class="key-separator">+</span>
+                                <span class="key">G</span>
+                            </div>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">Cancel Drawing</span>
+                            <div class="shortcut-keys">
+                                <span class="key">ESC</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="shortcuts-category">
+                    <h5><span>🖱️</span> Mouse Controls</h5>
+                    <div class="shortcuts-list">
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">Finish MultiLine Segment</span>
+                            <div class="shortcut-keys">
+                                <span class="key">Right Click</span>
+                            </div>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">Finish MultiLine</span>
+                            <div class="shortcut-keys">
+                                <span class="key">Double Click</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Clear All Section -->
+        <div class="sidebar-section">
+            <h3><span>🧹</span> Clear All</h3>
+            <button class="control-button clear" onclick="clearAll()">
+                <span>🗑️</span>
+                <span>Clear Everything</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="street-view"></div>
+    <div id="main-map"></div>
+    
+    <div class="loading-spinner" id="loading">
+        <div class="spinner"></div>
+    </div>
+    
+    <div id="toast" class="toast"></div>
+
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCKo-4KyqDSNOfY5uP--H9IIb_G56WavvQ&libraries=places,geometry,drawing&callback=initMap" async defer></script>
+    
+    <script>
+        let mainMap;
+        let markerA, markerB;
+        let line;
+        let infoWindow;
+        let streetView;
+        let measurementActive = false;
+        let searchMarker;
+        
+        // Drawing variables
+        let drawingMode = null;
+        let drawnFeatures = [];
+        let currentLine = null;
+        let currentLineCoords = [];
+        let multilineCoords = [];
+        let isDrawingMultiline = false;
+
+        function initMap() {
+            showLoading(true);
+            
+            const defaultCenter = { lat: 38.902706, lng: -77.030629 };
+            
+            const mapOptions = {
+                center: defaultCenter,
+                zoom: 18,
+                styles: [
+                    {
+                        featureType: "poi",
+                        elementType: "labels",
+                        stylers: [{ visibility: "off" }]
+                    },
+                    {
+                        featureType: "transit",
+                        elementType: "labels.icon",
+                        stylers: [{ visibility: "off" }]
+                    }
+                ],
+                mapTypeControl: true,
+                mapTypeControlOptions: {
+                    position: google.maps.ControlPosition.TOP_RIGHT,
+                    style: google.maps.MapTypeControlStyle.DROPDOWN_MENU
+                },
+                fullscreenControl: false,
+                streetViewControl: true,
+                zoomControl: true,
+                zoomControlOptions: {
+                    position: google.maps.ControlPosition.RIGHT_CENTER
+                }
+            };
+
+            mainMap = new google.maps.Map(document.getElementById("main-map"), mapOptions);
+            
+            // Initialize Street View
+            streetView = new google.maps.StreetViewPanorama(
+                document.getElementById("street-view"),
+                {
+                    position: defaultCenter,
+                    pov: { heading: 0, pitch: 0 },
+                    zoom: 1,
+                    addressControl: true,
+                    linksControl: true,
+                    panControl: true,
+                    enableCloseButton: false
+                }
+            );
+            
+            mainMap.setStreetView(streetView);
+            
+            // Load GeoJSON data if available
+            if (typeof yourGeoJsonData !== 'undefined') {
+                mainMap.data.addGeoJson(yourGeoJsonData);
+                styleGeoJsonData();
+            }
+            
+            // Initialize info window
+            infoWindow = new google.maps.InfoWindow();
+            
+            // Set up event listeners
+            setupEventListeners();
+            
+            showLoading(false);
+            showToast('Map loaded successfully!');
+        }
+
+        function styleGeoJsonData() {
+            mainMap.data.setStyle((feature) => {
+                return {
+                    icon: {
+                        url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+                        scaledSize: new google.maps.Size(32, 32),
+                        anchor: new google.maps.Point(16, 32)
+                    },
+                    animation: google.maps.Animation.DROP
+                };
+            });
+
+            mainMap.data.addListener("click", (event) => {
+                const content = `
+                    <div class="custom-info-window">
+                        <h4>Location Details</h4>
+                        <div class="info-row">
+                            <strong>Object ID:</strong> ${event.feature.getProperty("object") || "N/A"}
+                        </div>
+                        <div class="info-row">
+                            <strong>Route:</strong> ${event.feature.getProperty("area") || "N/A"}
+                        </div>
+                        <div class="info-row">
+                            <strong>Position:</strong> ${event.latLng.toUrlValue(6)}
+                        </div>
+                    </div>`;
+                infoWindow.setContent(content);
+                infoWindow.setPosition(event.latLng);
+                infoWindow.open(mainMap);
+                
+                // Update street view
+                streetView.setPosition(event.latLng);
+            });
+        }
+
+        function setupEventListeners() {
+            // Search functionality
+            const searchBox = document.getElementById("search-box");
+            searchBox.addEventListener("keypress", (e) => {
+                if (e.key === "Enter") {
+                    performSearch();
+                }
+            });
+
+            // Map click listeners for drawing and measurement
+            mainMap.addListener('click', (e) => {
+                if (measurementActive && markerA && markerB) {
+                    // Measurement mode
+                    const distToA = google.maps.geometry.spherical.computeDistanceBetween(e.latLng, markerA.getPosition());
+                    const distToB = google.maps.geometry.spherical.computeDistanceBetween(e.latLng, markerB.getPosition());
+                    
+                    if (distToA <= distToB) {
+                        markerA.setPosition(e.latLng);
+                    } else {
+                        markerB.setPosition(e.latLng);
+                    }
+                    updateDistance();
+                } else if (drawingMode) {
+                    // Drawing mode
+                    handleDrawingClick(e.latLng);
+                }
+            });
+
+            // Right-click to finish multiline segment
+            mainMap.addListener('rightclick', (e) => {
+                if (drawingMode === 'multiline' && currentLineCoords.length > 1) {
+                    finishMultilineSegment();
+                }
+            });
+
+            // Double-click to finish multiline entirely
+            mainMap.addListener('dblclick', (e) => {
+                if (drawingMode === 'multiline' && multilineCoords.length > 0) {
+                    finishMultiline();
+                    clearDrawingMode();
+                }
+            });
+        }
+
+        // Sidebar functions
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('expanded');
+        }
+
+        // Shortcuts panel function
+        function toggleShortcutsPanel() {
+            const panel = document.getElementById('shortcuts-panel');
+            const button = document.querySelector('.shortcuts-toggle span:last-child');
+            
+            panel.classList.toggle('active');
+            
+            if (panel.classList.contains('active')) {
+                button.textContent = 'Hide Shortcuts';
+            } else {
+                button.textContent = 'Show Shortcuts';
+            }
+        }
+
+        // Drawing functions
+        function setDrawingMode(mode) {
+            clearDrawingMode();
+            drawingMode = mode;
+            document.querySelectorAll('.draw-button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(mode + 'Btn').classList.add('active');
+            mainMap.setOptions({ draggableCursor: 'crosshair' });
+            showToast(`${mode.charAt(0).toUpperCase() + mode.slice(1)} drawing mode activated`);
+            // Show End MultiLine button only for multiline mode
+            document.getElementById('endMultilineBtn').style.display = (mode === 'multiline') ? 'block' : 'none';
+        }
+
+        function clearDrawingMode() {
+            drawingMode = null;
+            currentLine = null;
+            currentLineCoords = [];
+            multilineCoords = [];
+            isDrawingMultiline = false;
+            mainMap.setOptions({ draggableCursor: null });
+            document.querySelectorAll('.draw-button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('endMultilineBtn').style.display = 'none';
+        }
+
+        function handleDrawingClick(latLng) {
+            switch (drawingMode) {
+                case 'point':
+                    createPoint(latLng);
+                    break;
+                case 'line':
+                    addLinePoint(latLng);
+                    break;
+                case 'multiline':
+                    addMultilinePoint(latLng);
+                    break;
+            }
+        }
+
+        function createPoint(latLng) {
+            const marker = new google.maps.Marker({
+                position: latLng,
+                map: mainMap,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 8,
+                    fillColor: "#4CAF50",
+                    fillOpacity: 0.9,
+                    strokeColor: "#ffffff",
+                    strokeWeight: 2
+                },
+                title: "Point Feature"
+            });
+
+            const geojson = {
+                coordinates: [latLng.lng(), latLng.lat()],
+                type: "Point"
+            };
+
+            drawnFeatures.push({
+                type: 'point',
+                marker: marker,
+                geojson: geojson
+            });
+
+            updateGeoJSONDisplay();
+            showToast('Point created!');
+        }
+
+        function addLinePoint(latLng) {
+            currentLineCoords.push(latLng);
+            
+            // Create marker for the point
+            const marker = new google.maps.Marker({
+                position: latLng,
+                map: mainMap,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 6,
+                    fillColor: "#2196F3",
+                    fillOpacity: 0.9,
+                    strokeColor: "#ffffff",
+                    strokeWeight: 2
+                }
+            });
+
+            if (currentLineCoords.length === 1) {
+                // First point
+                currentLine = {
+                    markers: [marker],
+                    polyline: null
+                };
+                showToast('Line started - click to add second point');
+            } else if (currentLineCoords.length === 2) {
+                // Second point - complete the line
+                currentLine.markers.push(marker);
+                
+                const polyline = new google.maps.Polyline({
+                    path: currentLineCoords,
+                    geodesic: true,
+                    strokeColor: "#2196F3",
+                    strokeOpacity: 1.0,
+                    strokeWeight: 3,
+                    map: mainMap
+                });
+                
+                currentLine.polyline = polyline;
+
+                const geojson = {
+                    coordinates: currentLineCoords.map(coord => [coord.lng(), coord.lat()]),
+                    type: "LineString"
+                };
+
+                drawnFeatures.push({
+                    type: 'line',
+                    markers: currentLine.markers,
+                    polyline: polyline,
+                    geojson: geojson
+                });
+
+                // Reset for next line
+                currentLine = null;
+                currentLineCoords = [];
+                
+                updateGeoJSONDisplay();
+                showToast('Line completed!');
+            }
+        }
+
+        function addMultilinePoint(latLng) {
+            currentLineCoords.push(latLng);
+            const marker = new google.maps.Marker({
+                position: latLng,
+                map: mainMap,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 6,
+                    fillColor: "#9C27B0",
+                    fillOpacity: 0.9,
+                    strokeColor: "#ffffff",
+                    strokeWeight: 2
+                }
+            });
+
+            if (!isDrawingMultiline) {
+                isDrawingMultiline = true;
+                multilineCoords = [];
+                showToast('MultiLine started - right-click to finish segment, double-click or press "End MultiLine" to finish');
+            }
+
+            // Update or create current segment polyline
+            if (currentLineCoords.length >= 2) {
+                if (currentLine && currentLine.polyline) {
+                    currentLine.polyline.setMap(null);
+                }
+                const polyline = new google.maps.Polyline({
+                    path: currentLineCoords,
+                    geodesic: true,
+                    strokeColor: "#9C27B0",
+                    strokeOpacity: 1.0,
+                    strokeWeight: 3,
+                    map: mainMap,
+                    strokePattern: [
+                        { icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 4 }, offset: '0', repeat: '20px' }
+                    ]
+                });
+                if (!currentLine) {
+                    currentLine = { markers: [], polylines: [] };
+                }
+                currentLine.markers.push(marker);
+                currentLine.polylines = currentLine.polylines || [];
+                currentLine.polylines.push(polyline);
+            } else if (!currentLine) {
+                currentLine = { markers: [marker], polylines: [] };
+            } else {
+                currentLine.markers.push(marker);
+            }
+        }
+
+        function finishMultilineSegment() {
+            if (currentLineCoords.length > 1) {
+                multilineCoords.push(currentLineCoords.map(coord => [coord.lng(), coord.lat()]));
+                currentLineCoords = [];
+                showToast(`Segment ${multilineCoords.length} completed - click to start new segment`);
+            }
+        }
+
+        // New function for explicit completion via button
+        function finishMultilineFromButton() {
+            if (drawingMode === 'multiline') {
+                finishMultiline();
+                clearDrawingMode();
+            }
+        }
+
+        function finishMultiline() {
+            if (multilineCoords.length > 0 || currentLineCoords.length > 1) {
+                // Add current segment if it has points
+                if (currentLineCoords.length > 1) {
+                    multilineCoords.push(currentLineCoords.map(coord => [coord.lng(), coord.lat()]));
+                }
+                const geojson = {
+                    coordinates: multilineCoords,
+                    type: "MultiLineString"
+                };
+                drawnFeatures.push({
+                    type: 'multiline',
+                    markers: currentLine ? currentLine.markers : [],
+                    polylines: currentLine ? currentLine.polylines : [],
+                    geojson: geojson
+                });
+                currentLine = null;
+                currentLineCoords = [];
+                multilineCoords = [];
+                isDrawingMultiline = false;
+                updateGeoJSONDisplay();
+                showToast('MultiLine completed!');
+            }
+        }
+
+        function clearDrawings() {
+            // Remove all drawn features from map
+            drawnFeatures.forEach(feature => {
+                if (feature.marker) {
+                    feature.marker.setMap(null);
+                }
+                if (feature.markers) {
+                    feature.markers.forEach(marker => marker.setMap(null));
+                }
+                if (feature.polyline) {
+                    feature.polyline.setMap(null);
+                }
+                if (feature.polylines) {
+                    feature.polylines.forEach(polyline => polyline.setMap(null));
+                }
+            });
+
+            // Clear current drawing state
+            if (currentLine) {
+                if (currentLine.markers) {
+                    currentLine.markers.forEach(marker => marker.setMap(null));
+                }
+                if (currentLine.polyline) {
+                    currentLine.polyline.setMap(null);
+                }
+                if (currentLine.polylines) {
+                    currentLine.polylines.forEach(polyline => polyline.setMap(null));
+                }
+            }
+
+            drawnFeatures = [];
+            currentLine = null;
+            currentLineCoords = [];
+            multilineCoords = [];
+            isDrawingMultiline = false;
+            updateGeoJSONDisplay();
+            showToast('All drawings cleared!');
+        }
+
+        function updateGeoJSONDisplay() {
+            const listContainer = document.getElementById('geojson-list');
+            listContainer.innerHTML = '';
+
+            drawnFeatures.forEach((feature, index) => {
+                const featureDiv = document.createElement('div');
+                featureDiv.className = 'info-item';
+                featureDiv.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <strong>${feature.type.charAt(0).toUpperCase() + feature.type.slice(1)} ${index + 1}</strong>
+                        <div>
+                            <button class="copy-button" onclick="copyGeoJSON(${index})">Copy</button>
+                            <button class="copy-button" onclick="deleteFeature(${index})" style="background: #f44336;">Delete</button>
+                        </div>
+                    </div>
+                    <div class="geojson-output">${JSON.stringify(feature.geojson, null, 2)}</div>
+                `;
+                listContainer.appendChild(featureDiv);
+            });
+        }
+
+        function copyGeoJSON(index) {
+            const geojson = JSON.stringify(drawnFeatures[index].geojson);
+            navigator.clipboard.writeText(geojson).then(() => {
+                showToast('GeoJSON copied to clipboard!');
+            }).catch(err => {
+                showToast('Failed to copy to clipboard', 'error');
+            });
+        }
+
+        function copyAllGeoJSON() {
+            if (drawnFeatures.length === 0) {
+                showToast('No features to copy', 'error');
+                return;
+            }
+
+            const allGeoJSON = {
+                type: "FeatureCollection",
+                features: drawnFeatures.map((feature, index) => ({
+                    type: "Feature",
+                    properties: {
+                        id: index + 1,
+                        featureType: feature.type
+                    },
+                    geometry: feature.geojson
+                }))
+            };
+
+            navigator.clipboard.writeText(JSON.stringify(allGeoJSON, null, 2)).then(() => {
+                showToast('All GeoJSON copied as FeatureCollection!');
+            }).catch(err => {
+                showToast('Failed to copy to clipboard', 'error');
+            });
+        }
+
+        function deleteFeature(index) {
+            const feature = drawnFeatures[index];
+            
+            // Remove from map
+            if (feature.marker) {
+                feature.marker.setMap(null);
+            }
+            if (feature.markers) {
+                feature.markers.forEach(marker => marker.setMap(null));
+            }
+            if (feature.polyline) {
+                feature.polyline.setMap(null);
+            }
+            if (feature.polylines) {
+                feature.polylines.forEach(polyline => polyline.setMap(null));
+            }
+
+            // Remove from array
+            drawnFeatures.splice(index, 1);
+            
+            updateGeoJSONDisplay();
+            showToast('Feature deleted');
+        }
+
+        function toggleGeoJSONPanel() {
+            const panel = document.getElementById('geojson-panel');
+            panel.classList.toggle('active');
+            
+            if (panel.classList.contains('active')) {
+                updateGeoJSONDisplay();
+            }
+        }
+
+        // Original functions (measurement, search, etc.)
+        function performSearch() {
+            const searchID = document.getElementById("search-box").value.trim();
+            if (!searchID) {
+                showToast('Please enter an Object ID');
+                return;
+            }
+            
+            findAndHighlightPoint(searchID);
+        }
+
+        function findAndHighlightPoint(searchID) {
+            showLoading(true);
+            
+            // Clear previous search marker
+            if (searchMarker) {
+                searchMarker.setMap(null);
+            }
+            
+            const feature = mainMap.data.getFeatureById(searchID);
+            
+            if (feature) {
+                const pointCoordinates = feature.getGeometry().get();
+                
+                // Animate to location
+                mainMap.panTo(pointCoordinates);
+                setTimeout(() => {
+                    mainMap.setZoom(19);
+                }, 500);
+                
+                // Update street view
+                streetView.setPosition(pointCoordinates);
+                streetView.setPov({ heading: 0, pitch: 0 });
+                
+                // Create enhanced marker
+                searchMarker = new google.maps.Marker({
+                    position: pointCoordinates,
+                    map: mainMap,
+                    animation: google.maps.Animation.BOUNCE,
+                    icon: {
+                        url: "http://maps.google.com/mapfiles/ms/icons/yellow-dot.png",
+                        scaledSize: new google.maps.Size(48, 48)
+                    },
+                    title: `Object: ${feature.getProperty("object")}`
+                });
+                
+                // Stop animation after 3 seconds
+                setTimeout(() => {
+                    searchMarker.setAnimation(null);
+                }, 3000);
+                
+                // Show info window
+                const content = `
+                    <div class="custom-info-window">
+                        <h4>Search Result</h4>
+                        <div class="info-row">
+                            <strong>Object ID:</strong> ${feature.getProperty("object")}
+                        </div>
+                        <div class="info-row">
+                            <strong>Route:</strong> ${feature.getProperty("area") || "N/A"}
+                        </div>
+                    </div>`;
+                infoWindow.setContent(content);
+                infoWindow.open(mainMap, searchMarker);
+                
+                showToast(`Found: ${feature.getProperty("object")}`);
+            } else {
+                showToast('Object ID not found', 'error');
+            }
+            
+            showLoading(false);
+        }
+
+        function toggleMeasurement() {
+            measurementActive = !measurementActive;
+            const btn = document.getElementById('measureBtn');
+            const icon = document.getElementById('measureIcon');
+            const text = document.getElementById('measureText');
+            
+            if (measurementActive) {
+                // Clear drawing mode when starting measurement
+                clearDrawingMode();
+                
+                // Start measurement mode
+                btn.classList.add('active');
+                icon.textContent = '⏹️';
+                text.textContent = 'Stop Measuring';
+                
+                // Close any open info windows
+                infoWindow.close();
+                
+                initMeasurement();
+                showToast('Measurement mode active - Click or drag markers');
+            } else {
+                // Stop measurement mode
+                btn.classList.remove('active');
+                icon.textContent = '📏';
+                text.textContent = 'Start Measuring';
+                
+                // Hide markers but keep them for later use
+                if (markerA) markerA.setMap(null);
+                if (markerB) markerB.setMap(null);
+                if (line) line.setMap(null);
+                
+                // Hide info panel
+                document.getElementById('info-panel').classList.remove('active');
+                
+                showToast('Measurement mode stopped');
+            }
+        }
+
+        function initMeasurement() {
+            const center = mainMap.getCenter();
+            
+            if (!markerA) {
+                // Create markers for the first time
+                markerA = new google.maps.Marker({
+                    position: center,
+                    map: mainMap,
+                    draggable: true,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 8,
+                        fillColor: "#4CAF50",
+                        fillOpacity: 0.9,
+                        strokeColor: "#ffffff",
+                        strokeWeight: 2
+                    },
+                    title: "Point A",
+                    zIndex: 1000
+                });
+                
+                markerB = new google.maps.Marker({
+                    position: new google.maps.LatLng(center.lat() + 0.0002, center.lng() + 0.0002),
+                    map: mainMap,
+                    draggable: true,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 8,
+                        fillColor: "#f44336",
+                        fillOpacity: 0.9,
+                        strokeColor: "#ffffff",
+                        strokeWeight: 2
+                    },
+                    title: "Point B",
+                    zIndex: 1000
+                });
+                
+                markerA.addListener("dragend", updateDistance);
+                markerB.addListener("dragend", updateDistance);
+                markerA.addListener("drag", updateDistance);
+                markerB.addListener("drag", updateDistance);
+                
+                // Create the line
+                line = new google.maps.Polyline({
+                    path: [markerA.getPosition(), markerB.getPosition()],
+                    geodesic: true,
+                    strokeColor: "#2196F3",
+                    strokeOpacity: 1.0,
+                    strokeWeight: 3,
+                    map: mainMap,
+                    icons: [{
+                        icon: {
+                            path: 'M 0,-1 0,1',
+                            strokeOpacity: 1,
+                            scale: 4
+                        },
+                        offset: '0',
+                        repeat: '20px'
+                    }]
+                });
+            } else {
+                // Reuse existing markers
+                markerA.setPosition(center);
+                markerB.setPosition(new google.maps.LatLng(center.lat() + 0.0002, center.lng() + 0.0002));
+                markerA.setMap(mainMap);
+                markerB.setMap(mainMap);
+                line.setMap(mainMap);
+            }
+            
+            updateDistance();
+            document.getElementById('info-panel').classList.add('active');
+        }
+
+        function updateDistance() {
+            if (!markerA || !markerB) return;
+            
+            const posA = markerA.getPosition();
+            const posB = markerB.getPosition();
+            
+            const distance = google.maps.geometry.spherical.computeDistanceBetween(posA, posB);
+            
+            // Update line path
+            line.setPath([posA, posB]);
+            
+            // Update info panel
+            updateInfoPanel(distance, posA, posB);
+        }
+
+        function updateInfoPanel(distance, posA, posB) {
+            // Update main distance
+            document.getElementById('main-distance').textContent = `${distance.toFixed(2)} m`;
+            
+            // Update stats
+            document.getElementById('feet-value').textContent = (distance * 3.28084).toFixed(2);
+            document.getElementById('parallel-cars').textContent = (distance / 6).toFixed(1);
+            document.getElementById('perp-cars').textContent = (distance / 3).toFixed(1);
+            document.getElementById('walking-time').textContent = Math.round(distance / 1.4); // Average walking speed
+            
+            // Update coordinates
+            document.getElementById('point-a-coords').textContent = posA.toUrlValue(6);
+            document.getElementById('point-b-coords').textContent = posB.toUrlValue(6);
+        }
+
+        function clearAll() {
+            // Stop measurement mode if active
+            if (measurementActive) {
+                toggleMeasurement();
+            }
+            
+            // Clear drawing mode if active
+            clearDrawingMode();
+            
+            // Clear all markers
+            if (markerA) {
+                markerA.setMap(null);
+                markerA = null;
+            }
+            if (markerB) {
+                markerB.setMap(null);
+                markerB = null;
+            }
+            if (line) {
+                line.setMap(null);
+                line = null;
+            }
+            if (searchMarker) {
+                searchMarker.setMap(null);
+                searchMarker = null;
+            }
+            
+            // Clear all drawings
+            clearDrawings();
+            
+            // Close info windows and panels
+            infoWindow.close();
+            document.getElementById('info-panel').classList.remove('active');
+            document.getElementById('geojson-panel').classList.remove('active');
+            document.getElementById('shortcuts-panel').classList.remove('active');
+            document.getElementById('search-box').value = '';
+            
+            showToast('Everything cleared');
+        }
+
+        function showLoading(show) {
+            const loader = document.getElementById('loading');
+            if (show) {
+                loader.classList.add('active');
+            } else {
+                loader.classList.remove('active');
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.background = type === 'error' ? 
+                'rgba(244, 67, 54, 0.9)' : 'rgba(76, 175, 80, 0.9)';
+            
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 'm':
+                        e.preventDefault();
+                        toggleMeasurement();
+                        break;
+                    case 'k':
+                        e.preventDefault();
+                        clearAll();
+                        break;
+                    case 'f':
+                        e.preventDefault();
+                        document.getElementById('search-box').focus();
+                        break;
+                    case 'p':
+                        e.preventDefault();
+                        setDrawingMode('point');
+                        break;
+                    case 'l':
+                        e.preventDefault();
+                        setDrawingMode('line');
+                        break;
+                    case 'u':
+                        e.preventDefault();
+                        setDrawingMode('multiline');
+                        break;
+                    case 'g':
+                        e.preventDefault();
+                        toggleGeoJSONPanel();
+                        break;
+                    case 's':
+                        e.preventDefault();
+                        toggleSidebar();
+                        break;
+                }
+            }
+            
+            // ESC to cancel current drawing mode
+            if (e.key === 'Escape') {
+                clearDrawingMode();
+            }
+        });
+    </script>
+    
+    <!-- Include your GeoJSON data -->
+<script src="geojson.js"></script>
+</body>
+</html>
