@@ -1206,6 +1206,9 @@
             updateFilterStats();
         }
 
+        // Variable to track area labels
+        let areaLabels = new Map(); // Store labels by feature ID or coordinates
+
         function styleGeoJsonData() {
             mainMap.data.setStyle((feature) => {
                 return {
@@ -1218,7 +1221,7 @@
                 };
             });
 
-            // Updated click listener to show details in sidebar instead of info window
+            // Updated click listener to show details in sidebar and display area label
             mainMap.data.addListener("click", (event) => {
                 // Update location details in sidebar
                 updateLocationDetails({
@@ -1230,10 +1233,101 @@
                 // Highlight the clicked location
                 highlightSelectedLocation(event.latLng);
                 
+                // Show area label above the clicked marker
+                showAreaLabel(event.latLng, event.feature.getProperty("area"));
+                
                 // Update street view
                 streetView.setPosition(event.latLng);
                 
                 showToast('Location details updated in sidebar');
+            });
+        }
+
+        // Function to create and display area label above a marker
+        function showAreaLabel(position, areaValue) {
+            // Clear existing label at this position if it exists
+            const posKey = `${position.lat()}_${position.lng()}`;
+            if (areaLabels.has(posKey)) {
+                areaLabels.get(posKey).setMap(null);
+            }
+
+            if (!areaValue || areaValue === "N/A") {
+                return;
+            }
+
+            // Create a custom overlay for the label
+            const labelOverlay = new google.maps.OverlayView();
+            
+            labelOverlay.onAdd = function() {
+                const div = document.createElement('div');
+                div.style.cssText = `
+                    position: absolute;
+                    background: rgba(255, 255, 255, 0.95);
+                    border: 2px solid #2196F3;
+                    border-radius: 8px;
+                    padding: 6px 12px;
+                    font-size: 14px;
+                    font-weight: bold;
+                    color: #333;
+                    box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+                    white-space: nowrap;
+                    z-index: 1000;
+                    pointer-events: none;
+                    transform: translateX(-50%);
+                `;
+                div.textContent = `MPZone: ${areaValue}`;
+                
+                this.div = div;
+                const panes = this.getPanes();
+                panes.floatPane.appendChild(div);
+            };
+            
+            labelOverlay.draw = function() {
+                const overlayProjection = this.getProjection();
+                const pos = overlayProjection.fromLatLngToDivPixel(position);
+                
+                if (this.div) {
+                    this.div.style.left = pos.x + 'px';
+                    this.div.style.top = (pos.y - 50) + 'px'; // Position above the marker
+                }
+            };
+            
+            labelOverlay.onRemove = function() {
+                if (this.div) {
+                    this.div.parentNode.removeChild(this.div);
+                    this.div = null;
+                }
+            };
+            
+            labelOverlay.setMap(mainMap);
+            areaLabels.set(posKey, labelOverlay);
+            
+            // Auto-remove label after 60 seconds
+            setTimeout(() => {
+                if (areaLabels.has(posKey) && areaLabels.get(posKey) === labelOverlay) {
+                    labelOverlay.setMap(null);
+                    areaLabels.delete(posKey);
+                }
+            }, 60000);
+        }
+
+        // Function to clear all area labels
+        function clearAreaLabels() {
+            areaLabels.forEach(label => label.setMap(null));
+            areaLabels.clear();
+        }
+
+        // Function to show area labels for filtered markers
+        function showAreaLabelsForFilteredMarkers() {
+            currentVisibleFeatures.forEach(feature => {
+                const geometry = feature.getGeometry();
+                if (geometry && geometry.get) {
+                    const position = geometry.get();
+                    const areaValue = feature.getProperty("area");
+                    if (areaValue && areaValue !== "N/A") {
+                        showAreaLabel(position, areaValue);
+                    }
+                }
             });
         }
 
