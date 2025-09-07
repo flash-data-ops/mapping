@@ -995,29 +995,13 @@
                     <div class="distance-value" id="main-distance">0.00 m</div>
                     <div class="measurement-stats">
                         <div class="stat-box">
-                            <div class="value" id="feet-value">0.00</div>
-                            <div class="label">Feet</div>
-                        </div>
-                        <div class="stat-box">
                             <div class="value" id="parallel-cars">0.0</div>
-                            <div class="label">Cars (∥)</div>
+                            <div class="label">Cars (Parallel)</div>
                         </div>
                         <div class="stat-box">
                             <div class="value" id="perp-cars">0.0</div>
-                            <div class="label">Cars (⊥)</div>
+                            <div class="label">Cars (Perpendicular)</div>
                         </div>
-                        <div class="stat-box">
-                            <div class="value" id="walking-time">0</div>
-                            <div class="label">Walk (sec)</div>
-                        </div>
-                    </div>
-                    <div class="info-item">
-                        <strong>Point A:</strong><br>
-                        <span id="point-a-coords">-</span>
-                    </div>
-                    <div class="info-item">
-                        <strong>Point B:</strong><br>
-                        <span id="point-b-coords">-</span>
                     </div>
                 </div>
             </div>
@@ -1927,15 +1911,39 @@
                     strokeOpacity: 1.0,
                     strokeWeight: 4,
                     map: mainMap,
-                    icons: [{
-                        icon: {
-                            path: 'M 0,-1 0,1',
-                            strokeOpacity: 1,
-                            scale: 4
+                    icons: [
+                        {
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                scale: 4,
+                                fillColor: "#4CAF50",
+                                fillOpacity: 1,
+                                strokeColor: "#ffffff",
+                                strokeWeight: 2
+                            },
+                            offset: '0%'
                         },
-                        offset: '0',
-                        repeat: '20px'
-                    }]
+                        {
+                            icon: {
+                                path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                                scale: 4,
+                                fillColor: "#f44336",
+                                fillOpacity: 1,
+                                strokeColor: "#ffffff",
+                                strokeWeight: 2
+                            },
+                            offset: '100%'
+                        },
+                        {
+                            icon: {
+                                path: 'M 0,-1 0,1',
+                                strokeOpacity: 1,
+                                scale: 4
+                            },
+                            offset: '0',
+                            repeat: '20px'
+                        }
+                    ]
                 });
             }
             
@@ -2120,7 +2128,31 @@
                     strokeColor: "#2196F3",
                     strokeOpacity: 1.0,
                     strokeWeight: 3,
-                    map: mainMap
+                    map: mainMap,
+                    icons: [
+                        {
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                scale: 4,
+                                fillColor: "#4CAF50",
+                                fillOpacity: 1,
+                                strokeColor: "#ffffff",
+                                strokeWeight: 2
+                            },
+                            offset: '0%'
+                        },
+                        {
+                            icon: {
+                                path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                                scale: 4,
+                                fillColor: "#f44336",
+                                fillOpacity: 1,
+                                strokeColor: "#ffffff",
+                                strokeWeight: 2
+                            },
+                            offset: '100%'
+                        }
+                    ]
                 });
                 
                 currentLine.polyline = polyline;
@@ -2723,15 +2755,9 @@
             // Update main distance
             document.getElementById('main-distance').textContent = `${distance.toFixed(2)} m`;
             
-            // Update stats
-            document.getElementById('feet-value').textContent = (distance * 3.28084).toFixed(2);
+            // Update car parking stats only
             document.getElementById('parallel-cars').textContent = (distance / 6).toFixed(1);
             document.getElementById('perp-cars').textContent = (distance / 3).toFixed(1);
-            document.getElementById('walking-time').textContent = Math.round(distance / 1.4); // Average walking speed
-            
-            // Update coordinates
-            document.getElementById('point-a-coords').textContent = posA.toUrlValue(6);
-            document.getElementById('point-b-coords').textContent = posB.toUrlValue(6);
         }
 
         function clearAll() {
