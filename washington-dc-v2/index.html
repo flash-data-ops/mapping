@@ -359,7 +359,8 @@
         }
 
         .filter-actions {
-            display: flex;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 8px;
         }
 
@@ -389,6 +390,11 @@
             color: white;
         }
 
+        .hide-all {
+            background: linear-gradient(135deg, #9E9E9E 0%, #757575 100%);
+            color: white;
+        }
+
         .filter-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
@@ -396,12 +402,53 @@
 
         .filter-stats {
             margin-top: 10px;
-            padding: 8px;
-            background: rgba(33, 150, 243, 0.05);
-            border-radius: 6px;
-            font-size: 11px;
+            padding: 12px;
+            background: linear-gradient(135deg, rgba(33, 150, 243, 0.08) 0%, rgba(76, 175, 80, 0.08) 100%);
+            border-radius: 8px;
+            font-size: 12px;
             text-align: center;
-            color: #666;
+            color: #333;
+            border: 1px solid rgba(33, 150, 243, 0.2);
+            font-weight: 600;
+        }
+
+        .stats-visual {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 8px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .stat-dot.visible {
+            background: #4CAF50;
+            box-shadow: 0 0 4px rgba(76, 175, 80, 0.5);
+        }
+
+        .stat-dot.hidden {
+            background: #f44336;
+            box-shadow: 0 0 4px rgba(244, 67, 54, 0.5);
+        }
+
+        .stat-value {
+            font-weight: bold;
         }
 
         .empty-filter-message {
@@ -724,6 +771,57 @@
             gap: 6px;
         }
 
+        /* Styles for editable element indicators */
+        .editable-indicator {
+            position: absolute;
+            background: rgba(255, 193, 7, 0.9);
+            color: #000;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 1000;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            transform: translateX(-50%);
+            animation: pulse-indicator 2s infinite;
+        }
+
+        @keyframes pulse-indicator {
+            0%, 100% { 
+                opacity: 0.8; 
+                transform: translateX(-50%) scale(1);
+            }
+            50% { 
+                opacity: 1; 
+                transform: translateX(-50%) scale(1.05);
+            }
+        }
+
+        /* Enhanced measurement label styles */
+        .measurement-label {
+            background: rgba(33, 150, 243, 0.95) !important;
+            border: 2px solid #1976D2 !important;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .measurement-label.segment {
+            background: rgba(156, 39, 176, 0.95) !important;
+            border: 2px solid #7B1FA2 !important;
+        }
+
+        .measurement-label.total {
+            background: rgba(76, 175, 80, 0.95) !important;
+            border: 2px solid #4CAF50 !important;
+            font-size: 13px !important;
+            padding: 6px 10px !important;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+
         .loading-spinner {
             position: absolute;
             top: 50%;
@@ -838,9 +936,20 @@
                     <button class="filter-btn apply-filter" onclick="applyFilter()">Apply Filter</button>
                     <button class="filter-btn clear-filter" onclick="clearFilter()">Clear All</button>
                     <button class="filter-btn show-all" onclick="showAllMarkers()">Show All</button>
+                    <button class="filter-btn hide-all" onclick="hideAllMarkers()">Hide All</button>
                 </div>
                 <div id="filter-stats" class="filter-stats">
-                    Showing all markers
+                    <div>All markers visible</div>
+                    <div class="stats-visual">
+                        <div class="stat-item">
+                            <div class="stat-dot visible"></div>
+                            <span class="stat-value">0</span> visible
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-dot hidden"></div>
+                            <span class="stat-value">0</span> hidden
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -873,6 +982,9 @@
         <!-- Measurement Section -->
         <div class="sidebar-section">
             <h3><span>📏</span> Measurement Tool</h3>
+            <div style="background: rgba(76, 175, 80, 0.1); padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 11px; color: #333;">
+                <strong>📍 How to use:</strong> Click "Start Measuring" → Click on map for start point → Click for end point. Then drag markers or click anywhere to reposition.
+            </div>
             <button id="measureBtn" class="control-button" onclick="toggleMeasurement()">
                 <span id="measureIcon">📏</span>
                 <span id="measureText">Start Measuring</span>
@@ -914,24 +1026,28 @@
         <!-- Drawing Tools Section -->
         <div class="sidebar-section">
             <h3><span>✏️</span> Drawing Tools</h3>
+            <div style="background: rgba(33, 150, 243, 0.1); padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 11px; color: #333;">
+                <strong>✨ Enhanced Line Tool:</strong> All elements are draggable with real-time measurements! 
+                <br><strong>Auto-MultiLine:</strong> Draw individual lines normally - after 2+ lines, they automatically combine into a MultiLineString in the GeoJSON output with total measurements.
+            </div>
             <div class="drawing-controls">
                 <button id="pointBtn" class="draw-button" onclick="setDrawingMode('point')">
                     📍 Point
                 </button>
                 <button id="lineBtn" class="draw-button" onclick="setDrawingMode('line')">
-                    📏 Line
+                    📏 Enhanced Line
                 </button>
-                <button id="multilineBtn" class="draw-button" onclick="setDrawingMode('multiline')">
-                    〰️ MultiLine
-                </button>
+                <div class="draw-button" style="grid-column: 1 / -1; background: rgba(156, 39, 176, 0.1); border: 1px solid #9C27B0; color: #7B1FA2; cursor: default;">
+                    ℹ️ Lines auto-combine into MultiLineString
+                </div>
                 <button class="draw-button" onclick="clearDrawings()">
                     🗑️ Clear
                 </button>
                 <button class="draw-button" onclick="toggleGeoJSONPanel()">
                     📋 GeoJSON
                 </button>
-                <button id="endMultilineBtn" class="draw-button full-width" style="display:none;" onclick="finishMultilineFromButton()">
-                    ✅ End MultiLine
+                <button class="draw-button" onclick="toggleMeasurementLabels()">
+                    🏷️ Labels
                 </button>
             </div>
             
@@ -1010,11 +1126,23 @@
                     <h5><span>📏</span> Measurement</h5>
                     <div class="shortcuts-list">
                         <div class="shortcut-item">
-                            <span class="shortcut-description">Toggle Measurement</span>
+                            <span class="shortcut-description">Start/Stop Measurement</span>
                             <div class="shortcut-keys">
                                 <span class="key modifier">Ctrl</span>
                                 <span class="key-separator">+</span>
                                 <span class="key">M</span>
+                            </div>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">Set Points</span>
+                            <div class="shortcut-keys">
+                                <span class="key">Click Map</span>
+                            </div>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">Reposition Points</span>
+                            <div class="shortcut-keys">
+                                <span class="key">Drag Markers</span>
                             </div>
                         </div>
                     </div>
@@ -1032,19 +1160,11 @@
                             </div>
                         </div>
                         <div class="shortcut-item">
-                            <span class="shortcut-description">Line Tool</span>
+                            <span class="shortcut-description">Enhanced Line Tool</span>
                             <div class="shortcut-keys">
                                 <span class="key modifier">Ctrl</span>
                                 <span class="key-separator">+</span>
                                 <span class="key">L</span>
-                            </div>
-                        </div>
-                        <div class="shortcut-item">
-                            <span class="shortcut-description">MultiLine Tool</span>
-                            <div class="shortcut-keys">
-                                <span class="key modifier">Ctrl</span>
-                                <span class="key-separator">+</span>
-                                <span class="key">U</span>
                             </div>
                         </div>
                         <div class="shortcut-item">
@@ -1053,6 +1173,14 @@
                                 <span class="key modifier">Ctrl</span>
                                 <span class="key-separator">+</span>
                                 <span class="key">G</span>
+                            </div>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">Toggle Labels</span>
+                            <div class="shortcut-keys">
+                                <span class="key modifier">Ctrl</span>
+                                <span class="key-separator">+</span>
+                                <span class="key">T</span>
                             </div>
                         </div>
                         <div class="shortcut-item">
@@ -1068,15 +1196,15 @@
                     <h5><span>🖱️</span> Mouse Controls</h5>
                     <div class="shortcuts-list">
                         <div class="shortcut-item">
-                            <span class="shortcut-description">Finish MultiLine Segment</span>
+                            <span class="shortcut-description">Drag Points/Endpoints</span>
                             <div class="shortcut-keys">
-                                <span class="key">Right Click</span>
+                                <span class="key">Drag</span>
                             </div>
                         </div>
                         <div class="shortcut-item">
-                            <span class="shortcut-description">Finish MultiLine</span>
+                            <span class="shortcut-description">Auto-MultiLine Creation</span>
                             <div class="shortcut-keys">
-                                <span class="key">Double Click</span>
+                                <span class="key">Draw 2+ Lines</span>
                             </div>
                         </div>
                     </div>
@@ -1112,6 +1240,7 @@
         let line;
         let streetView;
         let measurementActive = false;
+        let measurementState = 'inactive'; // 'inactive', 'waiting_start', 'waiting_end', 'active'
         let searchMarker;
         let selectedLocationMarker; // Variable for tracking selected location
         
@@ -1120,8 +1249,11 @@
         let drawnFeatures = [];
         let currentLine = null;
         let currentLineCoords = [];
-        let multilineCoords = [];
-        let isDrawingMultiline = false;
+        let drawnLines = []; // Track all drawn lines for auto-combining
+        
+        // Measurement label variables
+        let measurementLabels = [];
+        let isEditMode = false;
 
         // Filter variables
         let filterValues = [];
@@ -1317,6 +1449,165 @@
             areaLabels.clear();
         }
 
+        // Helper function to create measurement labels
+        function createMeasurementLabel(position, text, labelType = 'default') {
+            const labelOverlay = new google.maps.OverlayView();
+            
+            labelOverlay.onAdd = function() {
+                const div = document.createElement('div');
+                div.className = `measurement-label ${labelType}`;
+                
+                // Base styles
+                let bgColor, borderColor, fontSize, padding;
+                
+                switch(labelType) {
+                    case 'segment':
+                        bgColor = 'rgba(156, 39, 176, 0.95)';
+                        borderColor = '#7B1FA2';
+                        fontSize = '11px';
+                        padding = '3px 6px';
+                        break;
+                    case 'total':
+                        bgColor = 'rgba(76, 175, 80, 0.95)';
+                        borderColor = '#4CAF50';
+                        fontSize = '13px';
+                        padding = '6px 10px';
+                        break;
+                    default:
+                        bgColor = 'rgba(33, 150, 243, 0.95)';
+                        borderColor = '#1976D2';
+                        fontSize = '12px';
+                        padding = '4px 8px';
+                        break;
+                }
+                
+                div.style.cssText = `
+                    position: absolute;
+                    background: ${bgColor};
+                    border: 2px solid ${borderColor};
+                    border-radius: 8px;
+                    padding: ${padding};
+                    font-size: ${fontSize};
+                    font-weight: bold;
+                    color: white;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                    white-space: nowrap;
+                    z-index: 1000;
+                    pointer-events: none;
+                    transform: translateX(-50%);
+                    max-width: 200px;
+                    text-align: center;
+                    animation: fadeIn 0.3s ease-in-out;
+                `;
+                div.textContent = text;
+                
+                this.div = div;
+                this.labelType = labelType;
+                const panes = this.getPanes();
+                panes.floatPane.appendChild(div);
+            };
+            
+            labelOverlay.draw = function() {
+                const overlayProjection = this.getProjection();
+                const pos = overlayProjection.fromLatLngToDivPixel(position);
+                
+                if (this.div) {
+                    this.div.style.left = pos.x + 'px';
+                    this.div.style.top = (pos.y - 35) + 'px';
+                }
+            };
+            
+            labelOverlay.onRemove = function() {
+                if (this.div) {
+                    this.div.parentNode.removeChild(this.div);
+                    this.div = null;
+                }
+            };
+            
+            labelOverlay.setMap(mainMap);
+            measurementLabels.push(labelOverlay);
+            return labelOverlay;
+        }
+
+        // Helper function to create editable indicators for markers
+        function createEditableIndicator(marker, text = "DRAG") {
+            const position = marker.getPosition();
+            const indicator = new google.maps.OverlayView();
+            
+            indicator.onAdd = function() {
+                const div = document.createElement('div');
+                div.className = 'editable-indicator';
+                div.style.cssText = `
+                    position: absolute;
+                    background: rgba(255, 193, 7, 0.9);
+                    color: #000;
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-size: 10px;
+                    font-weight: bold;
+                    pointer-events: none;
+                    z-index: 1001;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+                    transform: translateX(-50%);
+                    animation: pulse-indicator 2s infinite;
+                `;
+                div.textContent = text;
+                
+                this.div = div;
+                const panes = this.getPanes();
+                panes.floatPane.appendChild(div);
+            };
+            
+            indicator.draw = function() {
+                const overlayProjection = this.getProjection();
+                const pos = overlayProjection.fromLatLngToDivPixel(marker.getPosition());
+                
+                if (this.div) {
+                    this.div.style.left = pos.x + 'px';
+                    this.div.style.top = (pos.y - 55) + 'px';
+                }
+            };
+            
+            indicator.onRemove = function() {
+                if (this.div) {
+                    this.div.parentNode.removeChild(this.div);
+                    this.div = null;
+                }
+            };
+            
+            indicator.setMap(mainMap);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                indicator.setMap(null);
+            }, 5000);
+            
+            return indicator;
+        }
+
+        // Helper function to update measurement label
+        function updateMeasurementLabel(label, position, text) {
+            if (label.div) {
+                label.div.textContent = text;
+            }
+            label.position = position;
+            label.draw();
+        }
+
+        // Helper function to format coordinates
+        function formatCoordinates(latLng) {
+            return `${latLng.lat().toFixed(6)}, ${latLng.lng().toFixed(6)}`;
+        }
+
+        // Helper function to format distance
+        function formatDistance(distanceMeters) {
+            if (distanceMeters < 1000) {
+                return `${distanceMeters.toFixed(2)} m`;
+            } else {
+                return `${(distanceMeters / 1000).toFixed(3)} km`;
+            }
+        }
+
         // Function to show area labels for filtered markers
         function showAreaLabelsForFilteredMarkers() {
             currentVisibleFeatures.forEach(feature => {
@@ -1421,16 +1712,48 @@
             showToast('Showing all markers');
         }
 
+        function hideAllMarkers() {
+            allFeatures.forEach(feature => {
+                mainMap.data.overrideStyle(feature, { visible: false });
+            });
+            
+            currentVisibleFeatures = [];
+            updateFilterStats();
+            showToast('All markers hidden');
+        }
+
         function updateFilterStats() {
             const stats = document.getElementById('filter-stats');
             const total = allFeatures.length;
             const visible = currentVisibleFeatures.length;
+            const hidden = total - visible;
             
+            let statusText = '';
             if (filterValues.length === 0) {
-                stats.textContent = `Showing all ${total} markers`;
+                if (visible === total) {
+                    statusText = `All markers visible`;
+                } else if (visible === 0) {
+                    statusText = `All markers hidden`;
+                } else {
+                    statusText = `Markers status`;
+                }
             } else {
-                stats.textContent = `Showing ${visible} of ${total} markers (filtered by ${filterValues.length} values)`;
+                statusText = `Filtered by ${filterValues.length} value${filterValues.length > 1 ? 's' : ''}`;
             }
+            
+            stats.innerHTML = `
+                <div>${statusText}</div>
+                <div class="stats-visual">
+                    <div class="stat-item">
+                        <div class="stat-dot visible"></div>
+                        <span class="stat-value">${visible}</span> visible
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-dot hidden"></div>
+                        <span class="stat-value">${hidden}</span> hidden
+                    </div>
+                </div>
+            `;
         }
 
         // Updated function to show location details in sidebar
@@ -1494,37 +1817,139 @@
 
             // Map click listeners for drawing and measurement
             mainMap.addListener('click', (e) => {
-                if (measurementActive && markerA && markerB) {
-                    // Measurement mode
-                    const distToA = google.maps.geometry.spherical.computeDistanceBetween(e.latLng, markerA.getPosition());
-                    const distToB = google.maps.geometry.spherical.computeDistanceBetween(e.latLng, markerB.getPosition());
-                    
-                    if (distToA <= distToB) {
-                        markerA.setPosition(e.latLng);
-                    } else {
-                        markerB.setPosition(e.latLng);
-                    }
-                    updateDistance();
+                if (measurementActive) {
+                    handleMeasurementClick(e.latLng);
                 } else if (drawingMode) {
                     // Drawing mode
                     handleDrawingClick(e.latLng);
                 }
             });
 
-            // Right-click to finish multiline segment
-            mainMap.addListener('rightclick', (e) => {
-                if (drawingMode === 'multiline' && currentLineCoords.length > 1) {
-                    finishMultilineSegment();
-                }
-            });
+        }
 
-            // Double-click to finish multiline entirely
-            mainMap.addListener('dblclick', (e) => {
-                if (drawingMode === 'multiline' && multilineCoords.length > 0) {
-                    finishMultiline();
-                    clearDrawingMode();
-                }
-            });
+        // Function to handle measurement clicks
+        function handleMeasurementClick(latLng) {
+            switch (measurementState) {
+                case 'waiting_start':
+                    setMeasurementStartPoint(latLng);
+                    break;
+                case 'waiting_end':
+                    setMeasurementEndPoint(latLng);
+                    break;
+                case 'active':
+                    // Allow repositioning - find closest marker
+                    const distToA = google.maps.geometry.spherical.computeDistanceBetween(latLng, markerA.getPosition());
+                    const distToB = google.maps.geometry.spherical.computeDistanceBetween(latLng, markerB.getPosition());
+                    
+                    if (distToA <= distToB) {
+                        markerA.setPosition(latLng);
+                        showToast('Start point repositioned');
+                    } else {
+                        markerB.setPosition(latLng);
+                        showToast('End point repositioned');
+                    }
+                    updateDistance();
+                    break;
+            }
+        }
+
+        // Function to set measurement start point
+        function setMeasurementStartPoint(latLng) {
+            // Create or update marker A
+            if (markerA) {
+                markerA.setPosition(latLng);
+                markerA.setMap(mainMap);
+            } else {
+                markerA = new google.maps.Marker({
+                    position: latLng,
+                    map: mainMap,
+                    draggable: true,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 10,
+                        fillColor: "#4CAF50",
+                        fillOpacity: 0.9,
+                        strokeColor: "#ffffff",
+                        strokeWeight: 3
+                    },
+                    title: "Start Point - Drag to adjust",
+                    zIndex: 1000
+                });
+                
+                markerA.addListener("dragend", updateDistance);
+                markerA.addListener("drag", updateDistance);
+            }
+            
+            measurementState = 'waiting_end';
+            mainMap.setOptions({ draggableCursor: 'crosshair' });
+            showToast('Start point set! Click to set end point.');
+            
+            // Show visual indicator
+            createEditableIndicator(markerA, "START");
+        }
+
+        // Function to set measurement end point
+        function setMeasurementEndPoint(latLng) {
+            // Create or update marker B
+            if (markerB) {
+                markerB.setPosition(latLng);
+                markerB.setMap(mainMap);
+            } else {
+                markerB = new google.maps.Marker({
+                    position: latLng,
+                    map: mainMap,
+                    draggable: true,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 10,
+                        fillColor: "#f44336",
+                        fillOpacity: 0.9,
+                        strokeColor: "#ffffff",
+                        strokeWeight: 3
+                    },
+                    title: "End Point - Drag to adjust",
+                    zIndex: 1000
+                });
+                
+                markerB.addListener("dragend", updateDistance);
+                markerB.addListener("drag", updateDistance);
+            }
+            
+            // Create or update the measurement line
+            if (line) {
+                line.setPath([markerA.getPosition(), markerB.getPosition()]);
+                line.setMap(mainMap);
+            } else {
+                line = new google.maps.Polyline({
+                    path: [markerA.getPosition(), markerB.getPosition()],
+                    geodesic: true,
+                    strokeColor: "#2196F3",
+                    strokeOpacity: 1.0,
+                    strokeWeight: 4,
+                    map: mainMap,
+                    icons: [{
+                        icon: {
+                            path: 'M 0,-1 0,1',
+                            strokeOpacity: 1,
+                            scale: 4
+                        },
+                        offset: '0',
+                        repeat: '20px'
+                    }]
+                });
+            }
+            
+            measurementState = 'active';
+            mainMap.setOptions({ draggableCursor: null });
+            
+            // Show visual indicators
+            createEditableIndicator(markerB, "END");
+            
+            // Calculate and display measurement
+            updateDistance();
+            document.getElementById('info-panel').classList.add('active');
+            
+            showToast('Measurement complete! Click anywhere to reposition points, or drag markers.');
         }
 
         // Updated sidebar toggle function
@@ -1575,20 +2000,19 @@
             document.querySelectorAll('.draw-button').forEach(btn => btn.classList.remove('active'));
             document.getElementById(mode + 'Btn').classList.add('active');
             mainMap.setOptions({ draggableCursor: 'crosshair' });
+            if (mode === 'line') {
+                showToast('Enhanced Line mode activated - lines auto-combine into MultiLineString after 2+ lines');
+            } else {
             showToast(`${mode.charAt(0).toUpperCase() + mode.slice(1)} drawing mode activated`);
-            // Show End MultiLine button only for multiline mode
-            document.getElementById('endMultilineBtn').style.display = (mode === 'multiline') ? 'block' : 'none';
+            }
         }
 
         function clearDrawingMode() {
             drawingMode = null;
             currentLine = null;
             currentLineCoords = [];
-            multilineCoords = [];
-            isDrawingMultiline = false;
             mainMap.setOptions({ draggableCursor: null });
             document.querySelectorAll('.draw-button').forEach(btn => btn.classList.remove('active'));
-            document.getElementById('endMultilineBtn').style.display = 'none';
         }
 
         function handleDrawingClick(latLng) {
@@ -1599,9 +2023,6 @@
                 case 'line':
                     addLinePoint(latLng);
                     break;
-                case 'multiline':
-                    addMultilinePoint(latLng);
-                    break;
             }
         }
 
@@ -1609,6 +2030,7 @@
             const marker = new google.maps.Marker({
                 position: latLng,
                 map: mainMap,
+                draggable: true,
                 icon: {
                     path: google.maps.SymbolPath.CIRCLE,
                     scale: 8,
@@ -1617,7 +2039,7 @@
                     strokeColor: "#ffffff",
                     strokeWeight: 2
                 },
-                title: "Point Feature"
+                title: "Draggable Point - Drag to adjust position"
             });
 
             const geojson = {
@@ -1625,14 +2047,41 @@
                 type: "Point"
             };
 
-            drawnFeatures.push({
+            const featureIndex = drawnFeatures.length;
+            
+            // Create coordinate label
+            const coordinateLabel = createMeasurementLabel(latLng, formatCoordinates(latLng), 'default');
+            
+            // Create editable indicator
+            const editIndicator = createEditableIndicator(marker, "DRAG");
+            
+            const feature = {
                 type: 'point',
                 marker: marker,
-                geojson: geojson
+                geojson: geojson,
+                measurementLabel: coordinateLabel,
+                index: featureIndex
+            };
+
+            drawnFeatures.push(feature);
+
+            // Add drag listener to update coordinates
+            marker.addListener('drag', () => {
+                const newPos = marker.getPosition();
+                feature.geojson.coordinates = [newPos.lng(), newPos.lat()];
+                updateMeasurementLabel(coordinateLabel, newPos, formatCoordinates(newPos));
+            });
+            
+            marker.addListener('dragend', () => {
+                const newPos = marker.getPosition();
+                feature.geojson.coordinates = [newPos.lng(), newPos.lat()];
+                updateMeasurementLabel(coordinateLabel, newPos, formatCoordinates(newPos));
+            updateGeoJSONDisplay();
+                showToast('Point position updated!');
             });
 
             updateGeoJSONDisplay();
-            showToast('Point created!');
+            showToast('Draggable point created! Drag to adjust position.');
         }
 
         function addLinePoint(latLng) {
@@ -1642,6 +2091,7 @@
             const marker = new google.maps.Marker({
                 position: latLng,
                 map: mainMap,
+                draggable: true,
                 icon: {
                     path: google.maps.SymbolPath.CIRCLE,
                     scale: 6,
@@ -1649,7 +2099,8 @@
                     fillOpacity: 0.9,
                     strokeColor: "#ffffff",
                     strokeWeight: 2
-                }
+                },
+                title: "Draggable Line Endpoint"
             });
 
             if (currentLineCoords.length === 1) {
@@ -1679,112 +2130,290 @@
                     type: "LineString"
                 };
 
-                drawnFeatures.push({
+                // Calculate initial distance and create measurement label
+                const distance = google.maps.geometry.spherical.computeDistanceBetween(
+                    currentLineCoords[0], currentLineCoords[1]
+                );
+                
+                // Position label at midpoint of line
+                const midpoint = google.maps.geometry.spherical.interpolate(
+                    currentLineCoords[0], currentLineCoords[1], 0.5
+                );
+                
+                const measurementLabel = createMeasurementLabel(midpoint, formatDistance(distance), 'default');
+
+                const feature = {
                     type: 'line',
                     markers: currentLine.markers,
                     polyline: polyline,
-                    geojson: geojson
-                });
+                    geojson: geojson,
+                    measurementLabel: measurementLabel,
+                    index: drawnFeatures.length
+                };
+
+                // Add to drawn lines collection for auto-combining
+                drawnLines.push(feature);
+
+                // Add drag listeners to both endpoints
+                setupLineDragListeners(feature, 0); // First endpoint
+                setupLineDragListeners(feature, 1); // Second endpoint
+                
+                // Add editable indicators to both endpoints
+                createEditableIndicator(currentLine.markers[0], "DRAG");
+                createEditableIndicator(currentLine.markers[1], "DRAG");
+
+                // Check if we should create or update a MultiLineString
+                if (drawnLines.length >= 2) {
+                    createOrUpdateMultiLineString();
+                } else {
+                    // For single line, add to drawnFeatures normally
+                    drawnFeatures.push(feature);
+                    updateGeoJSONDisplay();
+                    showToast('Enhanced line created! Draw another line to auto-create MultiLineString.');
+                }
 
                 // Reset for next line
                 currentLine = null;
                 currentLineCoords = [];
-                
-                updateGeoJSONDisplay();
-                showToast('Line completed!');
             }
         }
 
-        function addMultilinePoint(latLng) {
-            currentLineCoords.push(latLng);
-            const marker = new google.maps.Marker({
-                position: latLng,
-                map: mainMap,
-                icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 6,
-                    fillColor: "#9C27B0",
-                    fillOpacity: 0.9,
-                    strokeColor: "#ffffff",
-                    strokeWeight: 2
-                }
+        // Function to setup drag listeners for line endpoints
+        function setupLineDragListeners(feature, markerIndex) {
+            const marker = feature.markers[markerIndex];
+            
+            marker.addListener('drag', () => {
+                updateLineGeometry(feature);
             });
-
-            if (!isDrawingMultiline) {
-                isDrawingMultiline = true;
-                multilineCoords = [];
-                showToast('MultiLine started - right-click to finish segment, double-click or press "End MultiLine" to finish');
-            }
-
-            // Update or create current segment polyline
-            if (currentLineCoords.length >= 2) {
-                if (currentLine && currentLine.polyline) {
-                    currentLine.polyline.setMap(null);
-                }
-                const polyline = new google.maps.Polyline({
-                    path: currentLineCoords,
-                    geodesic: true,
-                    strokeColor: "#9C27B0",
-                    strokeOpacity: 1.0,
-                    strokeWeight: 3,
-                    map: mainMap,
-                    strokePattern: [
-                        { icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 4 }, offset: '0', repeat: '20px' }
-                    ]
-                });
-                if (!currentLine) {
-                    currentLine = { markers: [], polylines: [] };
-                }
-                currentLine.markers.push(marker);
-                currentLine.polylines = currentLine.polylines || [];
-                currentLine.polylines.push(polyline);
-            } else if (!currentLine) {
-                currentLine = { markers: [marker], polylines: [] };
-            } else {
-                currentLine.markers.push(marker);
-            }
-        }
-
-        function finishMultilineSegment() {
-            if (currentLineCoords.length > 1) {
-                multilineCoords.push(currentLineCoords.map(coord => [coord.lng(), coord.lat()]));
-                currentLineCoords = [];
-                showToast(`Segment ${multilineCoords.length} completed - click to start new segment`);
-            }
-        }
-
-        // Function for explicit completion via button
-        function finishMultilineFromButton() {
-            if (drawingMode === 'multiline') {
-                finishMultiline();
-                clearDrawingMode();
-            }
-        }
-
-        function finishMultiline() {
-            if (multilineCoords.length > 0 || currentLineCoords.length > 1) {
-                // Add current segment if it has points
-                if (currentLineCoords.length > 1) {
-                    multilineCoords.push(currentLineCoords.map(coord => [coord.lng(), coord.lat()]));
-                }
-                const geojson = {
-                    coordinates: multilineCoords,
-                    type: "MultiLineString"
-                };
-                drawnFeatures.push({
-                    type: 'multiline',
-                    markers: currentLine ? currentLine.markers : [],
-                    polylines: currentLine ? currentLine.polylines : [],
-                    geojson: geojson
-                });
-                currentLine = null;
-                currentLineCoords = [];
-                multilineCoords = [];
-                isDrawingMultiline = false;
+            
+            marker.addListener('dragend', () => {
+                updateLineGeometry(feature);
                 updateGeoJSONDisplay();
-                showToast('MultiLine completed!');
+                showToast('Line length updated!');
+            });
+        }
+
+        // Function to update line geometry and measurement
+        function updateLineGeometry(feature) {
+            const path = feature.markers.map(marker => marker.getPosition());
+            
+            // Update polyline path
+            feature.polyline.setPath(path);
+            
+            // Update GeoJSON coordinates
+            feature.geojson.coordinates = path.map(pos => [pos.lng(), pos.lat()]);
+            
+            // Calculate new distance
+            const distance = google.maps.geometry.spherical.computeDistanceBetween(path[0], path[1]);
+            
+            // Update measurement label position and text
+            const midpoint = google.maps.geometry.spherical.interpolate(path[0], path[1], 0.5);
+            updateMeasurementLabel(feature.measurementLabel, midpoint, formatDistance(distance));
+            
+            // Update MultiLineString if this line is part of one
+            updateMultiLineStringGeometry();
+        }
+
+        // Function to create or update MultiLineString from all drawn lines
+        function createOrUpdateMultiLineString() {
+            if (drawnLines.length < 2) return;
+            
+            // Find existing MultiLineString feature
+            const existingMultiLineIndex = drawnFeatures.findIndex(feature => feature.type === 'multiline');
+            
+            if (existingMultiLineIndex === -1) {
+                // First time creating MultiLineString - remove individual line features
+                drawnLines.forEach(line => {
+                    const index = drawnFeatures.indexOf(line);
+                    if (index > -1) {
+                        drawnFeatures.splice(index, 1);
+                    }
+                });
+                
+                createNewMultiLineString();
+            } else {
+                // Update existing MultiLineString
+                updateExistingMultiLineString(existingMultiLineIndex);
             }
         }
+
+        // Function to create a new MultiLineString feature
+        function createNewMultiLineString() {
+            // Create MultiLineString GeoJSON with ALL drawn lines
+            const multiLineGeoJSON = {
+                coordinates: drawnLines.map(line => line.geojson.coordinates),
+                type: "MultiLineString"
+            };
+            
+            // Calculate total length and create measurement labels
+            let totalLength = 0;
+            const segmentLabels = [];
+            
+            drawnLines.forEach((line, index) => {
+                const lineLength = google.maps.geometry.spherical.computeDistanceBetween(
+                    line.markers[0].getPosition(),
+                    line.markers[1].getPosition()
+                );
+                totalLength += lineLength;
+                
+                // Update individual line label to show segment info
+                const midpoint = google.maps.geometry.spherical.interpolate(
+                    line.markers[0].getPosition(),
+                    line.markers[1].getPosition(),
+                    0.5
+                );
+                updateMeasurementLabel(
+                    line.measurementLabel, 
+                    midpoint, 
+                    `Line ${index + 1}: ${formatDistance(lineLength)}`
+                );
+                segmentLabels.push(line.measurementLabel);
+            });
+            
+            // Create total length label at the end of the last line
+            const lastLine = drawnLines[drawnLines.length - 1];
+            const totalLabel = createMeasurementLabel(
+                lastLine.markers[1].getPosition(),
+                `Total: ${formatDistance(totalLength)}`,
+                'total'
+            );
+            
+            // Create MultiLineString feature
+            const multiLineFeature = {
+                type: 'multiline',
+                lines: drawnLines,
+                markers: drawnLines.flatMap(line => line.markers),
+                polylines: drawnLines.map(line => line.polyline),
+                geojson: multiLineGeoJSON,
+                measurementLabels: segmentLabels,
+                totalLabel: totalLabel,
+                index: drawnFeatures.length
+            };
+            
+            // Add to drawnFeatures
+            drawnFeatures.push(multiLineFeature);
+            
+            // Setup drag listeners for all line endpoints
+            setupMultiLineStringDragListeners();
+            
+            updateGeoJSONDisplay();
+            showToast(`🎉 MultiLineString created! ${drawnLines.length} lines combined. Total: ${formatDistance(totalLength)}`);
+        }
+
+        // Function to update existing MultiLineString with new lines
+        function updateExistingMultiLineString(multiLineIndex) {
+            const multiLineFeature = drawnFeatures[multiLineIndex];
+            
+            // Update the GeoJSON to include ALL drawn lines
+            multiLineFeature.geojson.coordinates = drawnLines.map(line => line.geojson.coordinates);
+            
+            // Update the feature properties
+            multiLineFeature.lines = drawnLines;
+            multiLineFeature.markers = drawnLines.flatMap(line => line.markers);
+            multiLineFeature.polylines = drawnLines.map(line => line.polyline);
+            
+            // Recalculate measurements
+            let totalLength = 0;
+            drawnLines.forEach((line, index) => {
+                const lineLength = google.maps.geometry.spherical.computeDistanceBetween(
+                    line.markers[0].getPosition(),
+                    line.markers[1].getPosition()
+                );
+                totalLength += lineLength;
+                
+                // Update individual line label
+                const midpoint = google.maps.geometry.spherical.interpolate(
+                    line.markers[0].getPosition(),
+                    line.markers[1].getPosition(),
+                    0.5
+                );
+                updateMeasurementLabel(
+                    line.measurementLabel, 
+                    midpoint, 
+                    `Line ${index + 1}: ${formatDistance(lineLength)}`
+                );
+            });
+            
+            // Update total label
+            const lastLine = drawnLines[drawnLines.length - 1];
+            updateMeasurementLabel(
+                multiLineFeature.totalLabel,
+                lastLine.markers[1].getPosition(),
+                `Total: ${formatDistance(totalLength)}`
+            );
+            
+            // Update measurement labels array
+            multiLineFeature.measurementLabels = drawnLines.map(line => line.measurementLabel);
+            
+            // Setup drag listeners for all lines (including new ones)
+            setupMultiLineStringDragListeners();
+            
+            updateGeoJSONDisplay();
+            showToast(`📏 Line ${drawnLines.length} added to MultiLineString! Total: ${formatDistance(totalLength)}`);
+        }
+
+        // Function to setup drag listeners for all lines in the MultiLineString
+        function setupMultiLineStringDragListeners() {
+            drawnLines.forEach((line, lineIndex) => {
+                line.markers.forEach((marker, markerIndex) => {
+                    // Clear existing listeners
+                    google.maps.event.clearListeners(marker, 'drag');
+                    google.maps.event.clearListeners(marker, 'dragend');
+                    
+                    marker.addListener('drag', () => {
+                        updateLineGeometry(line);
+                    });
+                    
+                    marker.addListener('dragend', () => {
+                        updateLineGeometry(line);
+                        updateGeoJSONDisplay();
+                        showToast(`MultiLineString updated! Line ${lineIndex + 1} adjusted.`);
+                    });
+                });
+            });
+        }
+
+        // Function to update MultiLineString geometry when lines change
+        function updateMultiLineStringGeometry() {
+            // Find the MultiLineString feature
+            const multiLineFeature = drawnFeatures.find(feature => feature.type === 'multiline');
+            if (!multiLineFeature) return;
+            
+            // Update the MultiLineString coordinates
+            multiLineFeature.geojson.coordinates = drawnLines.map(line => line.geojson.coordinates);
+            
+            // Recalculate total length
+            let totalLength = 0;
+            drawnLines.forEach((line, index) => {
+                const lineLength = google.maps.geometry.spherical.computeDistanceBetween(
+                    line.markers[0].getPosition(),
+                    line.markers[1].getPosition()
+                );
+                totalLength += lineLength;
+                
+                // Update segment label
+                const midpoint = google.maps.geometry.spherical.interpolate(
+                    line.markers[0].getPosition(),
+                    line.markers[1].getPosition(),
+                    0.5
+                );
+                updateMeasurementLabel(
+                    line.measurementLabel, 
+                    midpoint, 
+                    `Line ${index + 1}: ${formatDistance(lineLength)}`
+                );
+            });
+            
+            // Update total label
+            const lastLine = drawnLines[drawnLines.length - 1];
+            updateMeasurementLabel(
+                multiLineFeature.totalLabel,
+                lastLine.markers[1].getPosition(),
+                `Total: ${formatDistance(totalLength)}`
+            );
+        }
+
+
 
         function clearDrawings() {
             // Remove all drawn features from map
@@ -1800,6 +2429,16 @@
                 }
                 if (feature.polylines) {
                     feature.polylines.forEach(polyline => polyline.setMap(null));
+                }
+                // Remove measurement labels
+                if (feature.measurementLabel) {
+                    feature.measurementLabel.setMap(null);
+                }
+                if (feature.measurementLabels) {
+                    feature.measurementLabels.forEach(label => label.setMap(null));
+                }
+                if (feature.totalLabel) {
+                    feature.totalLabel.setMap(null);
                 }
             });
 
@@ -1817,10 +2456,9 @@
             }
 
             drawnFeatures = [];
+            drawnLines = [];
             currentLine = null;
             currentLineCoords = [];
-            multilineCoords = [];
-            isDrawingMultiline = false;
             updateGeoJSONDisplay();
             showToast('All drawings cleared!');
         }
@@ -1896,6 +2534,16 @@
             if (feature.polylines) {
                 feature.polylines.forEach(polyline => polyline.setMap(null));
             }
+            // Remove measurement labels
+            if (feature.measurementLabel) {
+                feature.measurementLabel.setMap(null);
+            }
+            if (feature.measurementLabels) {
+                feature.measurementLabels.forEach(label => label.setMap(null));
+            }
+            if (feature.totalLabel) {
+                feature.totalLabel.setMap(null);
+            }
 
             // Remove from array
             drawnFeatures.splice(index, 1);
@@ -1911,6 +2559,32 @@
             if (panel.classList.contains('active')) {
                 updateGeoJSONDisplay();
             }
+        }
+
+        function toggleMeasurementLabels() {
+            let labelsVisible = measurementLabels.every(label => label.getMap() !== null);
+            
+            // Toggle visibility for all measurement labels
+            measurementLabels.forEach(label => {
+                label.setMap(labelsVisible ? null : mainMap);
+            });
+            
+            // Toggle visibility for feature-specific labels
+            drawnFeatures.forEach(feature => {
+                if (feature.measurementLabel) {
+                    feature.measurementLabel.setMap(labelsVisible ? null : mainMap);
+                }
+                if (feature.measurementLabels) {
+                    feature.measurementLabels.forEach(label => {
+                        label.setMap(labelsVisible ? null : mainMap);
+                    });
+                }
+                if (feature.totalLabel) {
+                    feature.totalLabel.setMap(labelsVisible ? null : mainMap);
+                }
+            });
+            
+            showToast(labelsVisible ? 'Measurement labels hidden' : 'Measurement labels shown');
         }
 
         // Original functions (measurement, search, etc.)
@@ -2002,13 +2676,20 @@
                 icon.textContent = '⏹️';
                 text.textContent = 'Stop Measuring';
                 
-                initMeasurement();
-                showToast('Measurement mode active - Click or drag markers');
+                // Initialize measurement state
+                measurementState = 'waiting_start';
+                mainMap.setOptions({ draggableCursor: 'crosshair' });
+                
+                showToast('Click on the map to set your starting point');
             } else {
                 // Stop measurement mode
                 btn.classList.remove('active');
                 icon.textContent = '📏';
                 text.textContent = 'Start Measuring';
+                
+                // Reset measurement state
+                measurementState = 'inactive';
+                mainMap.setOptions({ draggableCursor: null });
                 
                 // Hide markers but keep them for later use
                 if (markerA) markerA.setMap(null);
@@ -2022,78 +2703,6 @@
             }
         }
 
-        function initMeasurement() {
-            const center = mainMap.getCenter();
-            
-            if (!markerA) {
-                // Create markers for the first time
-                markerA = new google.maps.Marker({
-                    position: center,
-                    map: mainMap,
-                    draggable: true,
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        scale: 8,
-                        fillColor: "#4CAF50",
-                        fillOpacity: 0.9,
-                        strokeColor: "#ffffff",
-                        strokeWeight: 2
-                    },
-                    title: "Point A",
-                    zIndex: 1000
-                });
-                
-                markerB = new google.maps.Marker({
-                    position: new google.maps.LatLng(center.lat() + 0.0002, center.lng() + 0.0002),
-                    map: mainMap,
-                    draggable: true,
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        scale: 8,
-                        fillColor: "#f44336",
-                        fillOpacity: 0.9,
-                        strokeColor: "#ffffff",
-                        strokeWeight: 2
-                    },
-                    title: "Point B",
-                    zIndex: 1000
-                });
-                
-                markerA.addListener("dragend", updateDistance);
-                markerB.addListener("dragend", updateDistance);
-                markerA.addListener("drag", updateDistance);
-                markerB.addListener("drag", updateDistance);
-                
-                // Create the line
-                line = new google.maps.Polyline({
-                    path: [markerA.getPosition(), markerB.getPosition()],
-                    geodesic: true,
-                    strokeColor: "#2196F3",
-                    strokeOpacity: 1.0,
-                    strokeWeight: 3,
-                    map: mainMap,
-                    icons: [{
-                        icon: {
-                            path: 'M 0,-1 0,1',
-                            strokeOpacity: 1,
-                            scale: 4
-                        },
-                        offset: '0',
-                        repeat: '20px'
-                    }]
-                });
-            } else {
-                // Reuse existing markers
-                markerA.setPosition(center);
-                markerB.setPosition(new google.maps.LatLng(center.lat() + 0.0002, center.lng() + 0.0002));
-                markerA.setMap(mainMap);
-                markerB.setMap(mainMap);
-                line.setMap(mainMap);
-            }
-            
-            updateDistance();
-            document.getElementById('info-panel').classList.add('active');
-        }
 
         function updateDistance() {
             if (!markerA || !markerB) return;
@@ -2131,6 +2740,9 @@
                 toggleMeasurement();
             }
             
+            // Reset measurement state
+            measurementState = 'inactive';
+            
             // Clear drawing mode if active
             clearDrawingMode();
             
@@ -2158,6 +2770,13 @@
             
             // Clear all drawings
             clearDrawings();
+            
+            // Clear measurement labels
+            measurementLabels.forEach(label => label.setMap(null));
+            measurementLabels = [];
+            
+            // Reset drawn lines array
+            drawnLines = [];
             
             // Clear filter and show all markers
             clearFilter();
@@ -2226,13 +2845,13 @@
                         e.preventDefault();
                         setDrawingMode('line');
                         break;
-                    case 'u':
-                        e.preventDefault();
-                        setDrawingMode('multiline');
-                        break;
                     case 'g':
                         e.preventDefault();
                         toggleGeoJSONPanel();
+                        break;
+                    case 't':
+                        e.preventDefault();
+                        toggleMeasurementLabels();
                         break;
                     case 's':
                         e.preventDefault();
