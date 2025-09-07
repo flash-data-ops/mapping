@@ -1021,6 +1021,12 @@
                 <button id="lineBtn" class="draw-button" onclick="setDrawingMode('line')">
                     📏 Enhanced Line
                 </button>
+                <button id="parallelBtn" class="draw-button" onclick="setDrawingMode('parallel')">
+                    🚗 Parallel
+                </button>
+                <button id="perpendicularBtn" class="draw-button" onclick="setDrawingMode('perpendicular')">
+                    🚙 Perpendicular
+                </button>
                 <div class="draw-button" style="grid-column: 1 / -1; background: rgba(156, 39, 176, 0.1); border: 1px solid #9C27B0; color: #7B1FA2; cursor: default;">
                     ℹ️ Lines auto-combine into MultiLineString
                 </div>
@@ -1149,6 +1155,22 @@
                                 <span class="key modifier">Ctrl</span>
                                 <span class="key-separator">+</span>
                                 <span class="key">L</span>
+                            </div>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">Parallel Car Tool</span>
+                            <div class="shortcut-keys">
+                                <span class="key modifier">Ctrl</span>
+                                <span class="key-separator">+</span>
+                                <span class="key">R</span>
+                            </div>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">Perpendicular Car Tool</span>
+                            <div class="shortcut-keys">
+                                <span class="key modifier">Ctrl</span>
+                                <span class="key-separator">+</span>
+                                <span class="key">E</span>
                             </div>
                         </div>
                         <div class="shortcut-item">
@@ -1592,6 +1614,18 @@
             }
         }
 
+        // Helper function to format car counts
+        function formatCarCount(distanceMeters, type) {
+            if (type === 'parallel') {
+                const carCount = Math.floor(distanceMeters / 6);
+                return carCount === 1 ? `${carCount} Car` : `${carCount} Cars`;
+            } else if (type === 'perpendicular') {
+                const carCount = Math.floor(distanceMeters / 3);
+                return carCount === 1 ? `${carCount} Car` : `${carCount} Cars`;
+            }
+            return formatDistance(distanceMeters);
+        }
+
         // Function to show area labels for filtered markers
         function showAreaLabelsForFilteredMarkers() {
             currentVisibleFeatures.forEach(feature => {
@@ -2010,8 +2044,12 @@
             mainMap.setOptions({ draggableCursor: 'crosshair' });
             if (mode === 'line') {
                 showToast('Enhanced Line mode activated - lines auto-combine into MultiLineString after 2+ lines');
+            } else if (mode === 'parallel') {
+                showToast('Parallel Car mode activated - measurement will show cars (distance ÷ 6)');
+            } else if (mode === 'perpendicular') {
+                showToast('Perpendicular Car mode activated - measurement will show cars (distance ÷ 3)');
             } else {
-            showToast(`${mode.charAt(0).toUpperCase() + mode.slice(1)} drawing mode activated`);
+                showToast(`${mode.charAt(0).toUpperCase() + mode.slice(1)} drawing mode activated`);
             }
         }
 
@@ -2030,6 +2068,12 @@
                     break;
                 case 'line':
                     addLinePoint(latLng);
+                    break;
+                case 'parallel':
+                    addLinePoint(latLng, 'parallel');
+                    break;
+                case 'perpendicular':
+                    addLinePoint(latLng, 'perpendicular');
                     break;
             }
         }
@@ -2092,7 +2136,7 @@
             showToast('Draggable point created! Drag to adjust position.');
         }
 
-        function addLinePoint(latLng) {
+        function addLinePoint(latLng, drawingType = 'line') {
             currentLineCoords.push(latLng);
             
             // Create marker for the point
@@ -2115,7 +2159,8 @@
                 // First point
                 currentLine = {
                     markers: [marker],
-                    polyline: null
+                    polyline: null,
+                    drawingType: drawingType
                 };
                 showToast('Line started - click to add second point');
             } else if (currentLineCoords.length === 2) {
@@ -2172,10 +2217,19 @@
                     currentLineCoords[0], currentLineCoords[1], 0.5
                 );
                 
-                const measurementLabel = createMeasurementLabel(midpoint, formatDistance(distance), 'default');
+                // Format the measurement based on drawing type
+                let labelText;
+                if (drawingType === 'parallel' || drawingType === 'perpendicular') {
+                    labelText = formatCarCount(distance, drawingType);
+                } else {
+                    labelText = formatDistance(distance);
+                }
+                
+                const measurementLabel = createMeasurementLabel(midpoint, labelText, 'default');
 
                 const feature = {
                     type: 'line',
+                    drawingType: drawingType,
                     markers: currentLine.markers,
                     polyline: polyline,
                     geojson: geojson,
@@ -2238,9 +2292,15 @@
             // Calculate new distance
             const distance = google.maps.geometry.spherical.computeDistanceBetween(path[0], path[1]);
             
-            // Update measurement label position and text
+            // Update measurement label position and text based on drawing type
             const midpoint = google.maps.geometry.spherical.interpolate(path[0], path[1], 0.5);
-            updateMeasurementLabel(feature.measurementLabel, midpoint, formatDistance(distance));
+            let labelText;
+            if (feature.drawingType === 'parallel' || feature.drawingType === 'perpendicular') {
+                labelText = formatCarCount(distance, feature.drawingType);
+            } else {
+                labelText = formatDistance(distance);
+            }
+            updateMeasurementLabel(feature.measurementLabel, midpoint, labelText);
             
             // Update MultiLineString if this line is part of one
             updateMultiLineStringGeometry();
@@ -2294,19 +2354,38 @@
                     line.markers[1].getPosition(),
                     0.5
                 );
+                
+                // Format the label based on drawing type
+                let segmentText;
+                if (line.drawingType === 'parallel' || line.drawingType === 'perpendicular') {
+                    segmentText = `Line ${index + 1}: ${formatCarCount(lineLength, line.drawingType)}`;
+                } else {
+                    segmentText = `Line ${index + 1}: ${formatDistance(lineLength)}`;
+                }
+                
                 updateMeasurementLabel(
                     line.measurementLabel, 
                     midpoint, 
-                    `Line ${index + 1}: ${formatDistance(lineLength)}`
+                    segmentText
                 );
                 segmentLabels.push(line.measurementLabel);
             });
             
             // Create total length label at the end of the last line
             const lastLine = drawnLines[drawnLines.length - 1];
+            
+            // Determine total label format - if all lines are same car type, show total cars
+            const allSameType = drawnLines.every(line => line.drawingType === drawnLines[0].drawingType);
+            let totalText;
+            if (allSameType && (drawnLines[0].drawingType === 'parallel' || drawnLines[0].drawingType === 'perpendicular')) {
+                totalText = `Total: ${formatCarCount(totalLength, drawnLines[0].drawingType)}`;
+            } else {
+                totalText = `Total: ${formatDistance(totalLength)}`;
+            }
+            
             const totalLabel = createMeasurementLabel(
                 lastLine.markers[1].getPosition(),
-                `Total: ${formatDistance(totalLength)}`,
+                totalText,
                 'total'
             );
             
@@ -2359,19 +2438,38 @@
                     line.markers[1].getPosition(),
                     0.5
                 );
+                
+                // Format the label based on drawing type
+                let segmentText;
+                if (line.drawingType === 'parallel' || line.drawingType === 'perpendicular') {
+                    segmentText = `Line ${index + 1}: ${formatCarCount(lineLength, line.drawingType)}`;
+                } else {
+                    segmentText = `Line ${index + 1}: ${formatDistance(lineLength)}`;
+                }
+                
                 updateMeasurementLabel(
                     line.measurementLabel, 
                     midpoint, 
-                    `Line ${index + 1}: ${formatDistance(lineLength)}`
+                    segmentText
                 );
             });
             
             // Update total label
             const lastLine = drawnLines[drawnLines.length - 1];
+            
+            // Determine total label format - if all lines are same car type, show total cars
+            const allSameType = drawnLines.every(line => line.drawingType === drawnLines[0].drawingType);
+            let totalText;
+            if (allSameType && (drawnLines[0].drawingType === 'parallel' || drawnLines[0].drawingType === 'perpendicular')) {
+                totalText = `Total: ${formatCarCount(totalLength, drawnLines[0].drawingType)}`;
+            } else {
+                totalText = `Total: ${formatDistance(totalLength)}`;
+            }
+            
             updateMeasurementLabel(
                 multiLineFeature.totalLabel,
                 lastLine.markers[1].getPosition(),
-                `Total: ${formatDistance(totalLength)}`
+                totalText
             );
             
             // Update measurement labels array
@@ -2429,19 +2527,38 @@
                     line.markers[1].getPosition(),
                     0.5
                 );
+                
+                // Format the label based on drawing type
+                let segmentText;
+                if (line.drawingType === 'parallel' || line.drawingType === 'perpendicular') {
+                    segmentText = `Line ${index + 1}: ${formatCarCount(lineLength, line.drawingType)}`;
+                } else {
+                    segmentText = `Line ${index + 1}: ${formatDistance(lineLength)}`;
+                }
+                
                 updateMeasurementLabel(
                     line.measurementLabel, 
                     midpoint, 
-                    `Line ${index + 1}: ${formatDistance(lineLength)}`
+                    segmentText
                 );
             });
             
             // Update total label
             const lastLine = drawnLines[drawnLines.length - 1];
+            
+            // Determine total label format - if all lines are same car type, show total cars
+            const allSameType = drawnLines.every(line => line.drawingType === drawnLines[0].drawingType);
+            let totalText;
+            if (allSameType && (drawnLines[0].drawingType === 'parallel' || drawnLines[0].drawingType === 'perpendicular')) {
+                totalText = `Total: ${formatCarCount(totalLength, drawnLines[0].drawingType)}`;
+            } else {
+                totalText = `Total: ${formatDistance(totalLength)}`;
+            }
+            
             updateMeasurementLabel(
                 multiLineFeature.totalLabel,
                 lastLine.markers[1].getPosition(),
-                `Total: ${formatDistance(totalLength)}`
+                totalText
             );
         }
 
@@ -2870,6 +2987,14 @@
                     case 'l':
                         e.preventDefault();
                         setDrawingMode('line');
+                        break;
+                    case 'r':
+                        e.preventDefault();
+                        setDrawingMode('parallel');
+                        break;
+                    case 'e':
+                        e.preventDefault();
+                        setDrawingMode('perpendicular');
                         break;
                     case 'g':
                         e.preventDefault();
