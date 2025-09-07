@@ -1519,7 +1519,9 @@
                 
                 if (this.div) {
                     this.div.style.left = pos.x + 'px';
-                    this.div.style.top = (pos.y - 35) + 'px';
+                    // Position total labels higher to appear above individual line labels
+                    const topOffset = this.labelType === 'total' ? -65 : -35;
+                    this.div.style.top = (pos.y + topOffset) + 'px';
                 }
             };
             
@@ -1624,6 +1626,15 @@
                 return carCount === 1 ? `${carCount} Car` : `${carCount} Cars`;
             }
             return formatDistance(distanceMeters);
+        }
+
+        // Helper function to calculate position for total label above the last line's midpoint
+        function calculateTotalLabelPosition(startPoint, endPoint) {
+            // Calculate the midpoint of the last line (same horizontal position as individual label)
+            const midpoint = google.maps.geometry.spherical.interpolate(startPoint, endPoint, 0.5);
+            
+            // Return the midpoint - the total label will be positioned above it via CSS
+            return midpoint;
         }
 
         // Function to show area labels for filtered markers
@@ -2371,7 +2382,7 @@
                 segmentLabels.push(line.measurementLabel);
             });
             
-            // Create total length label at the end of the last line
+            // Create total length label at the end of the last line with offset
             const lastLine = drawnLines[drawnLines.length - 1];
             
             // Determine total label format - if all lines are same car type, show total cars
@@ -2383,8 +2394,14 @@
                 totalText = `Total: ${formatDistance(totalLength)}`;
             }
             
+            // Calculate position above the last line's individual label
+            const totalPosition = calculateTotalLabelPosition(
+                lastLine.markers[0].getPosition(),
+                lastLine.markers[1].getPosition()
+            );
+            
             const totalLabel = createMeasurementLabel(
-                lastLine.markers[1].getPosition(),
+                totalPosition,
                 totalText,
                 'total'
             );
@@ -2454,7 +2471,7 @@
                 );
             });
             
-            // Update total label
+            // Update total label with offset position
             const lastLine = drawnLines[drawnLines.length - 1];
             
             // Determine total label format - if all lines are same car type, show total cars
@@ -2466,9 +2483,15 @@
                 totalText = `Total: ${formatDistance(totalLength)}`;
             }
             
+            // Calculate position above the last line's individual label
+            const totalPosition = calculateTotalLabelPosition(
+                lastLine.markers[0].getPosition(),
+                lastLine.markers[1].getPosition()
+            );
+            
             updateMeasurementLabel(
                 multiLineFeature.totalLabel,
-                lastLine.markers[1].getPosition(),
+                totalPosition,
                 totalText
             );
             
@@ -2543,7 +2566,7 @@
                 );
             });
             
-            // Update total label
+            // Update total label with offset position
             const lastLine = drawnLines[drawnLines.length - 1];
             
             // Determine total label format - if all lines are same car type, show total cars
@@ -2555,9 +2578,15 @@
                 totalText = `Total: ${formatDistance(totalLength)}`;
             }
             
+            // Calculate position above the last line's individual label
+            const totalPosition = calculateTotalLabelPosition(
+                lastLine.markers[0].getPosition(),
+                lastLine.markers[1].getPosition()
+            );
+            
             updateMeasurementLabel(
                 multiLineFeature.totalLabel,
-                lastLine.markers[1].getPosition(),
+                totalPosition,
                 totalText
             );
         }
