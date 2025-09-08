@@ -180,6 +180,23 @@
             gap: 10px;
         }
 
+        .marker-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .marker-count {
+            background: rgba(76, 175, 80, 0.1);
+            border: 1px solid #4CAF50;
+            border-radius: 6px;
+            padding: 8px 12px;
+            text-align: center;
+            font-weight: bold;
+            color: #2E7D32;
+            font-size: 12px;
+        }
+
         .draw-button {
             background: rgba(255, 255, 255, 0.9);
             border: 2px solid #ddd;
@@ -1050,6 +1067,27 @@
             </div>
         </div>
 
+        <!-- Custom Markers Section -->
+        <div class="sidebar-section">
+            <h3><span>📌</span> Custom Markers</h3>
+            <div style="background: rgba(76, 175, 80, 0.1); padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 11px; color: #333;">
+                <strong>📍 Marker Tool:</strong> Click to place draggable markers that are visible in both map and street view! Click on existing markers to remove them.
+            </div>
+            <div class="marker-controls">
+                <button id="markerBtn" class="control-button" onclick="toggleMarkerMode()">
+                    <span id="markerIcon">📌</span>
+                    <span id="markerText">Start Placing Markers</span>
+                </button>
+                <button class="control-button clear" onclick="clearCustomMarkers()" style="background: #f44336; margin-top: 8px;">
+                    <span>🗑️</span>
+                    <span>Clear All Markers</span>
+                </button>
+                <div id="marker-count" class="marker-count">
+                    Markers: 0
+                </div>
+            </div>
+        </div>
+
         <!-- Keyboard Shortcuts Section -->
         <div class="sidebar-section">
             <h3><span>⌨️</span> Keyboard Shortcuts</h3>
@@ -1142,6 +1180,14 @@
                     <h5><span>✏️</span> Drawing Tools</h5>
                     <div class="shortcuts-list">
                         <div class="shortcut-item">
+                            <span class="shortcut-description">Custom Markers</span>
+                            <div class="shortcut-keys">
+                                <span class="key modifier">Ctrl</span>
+                                <span class="key-separator">+</span>
+                                <span class="key">J</span>
+                            </div>
+                        </div>
+                        <div class="shortcut-item">
                             <span class="shortcut-description">Point Tool</span>
                             <div class="shortcut-keys">
                                 <span class="key modifier">Ctrl</span>
@@ -1162,7 +1208,7 @@
                             <div class="shortcut-keys">
                                 <span class="key modifier">Ctrl</span>
                                 <span class="key-separator">+</span>
-                                <span class="key">R</span>
+                                <span class="key">O</span>
                             </div>
                         </div>
                         <div class="shortcut-item">
@@ -1245,6 +1291,7 @@
         let markerA, markerB;
         let line;
         let streetView;
+        let directionLine = null; // Line showing pegman's viewing direction
         let measurementActive = false;
         let measurementState = 'inactive'; // 'inactive', 'waiting_start', 'waiting_end', 'active'
         let searchMarker;
@@ -1265,6 +1312,11 @@
         let filterValues = [];
         let allFeatures = [];
         let currentVisibleFeatures = [];
+        
+        // Custom marker variables
+        let customMarkers = [];
+        let markerPlacementActive = false;
+        let markerCounter = 0;
 
         function initMap() {
             showLoading(true);
@@ -1316,6 +1368,13 @@
             );
             
             mainMap.setStreetView(streetView);
+            
+            // Add event listeners for direction line updates
+            streetView.addListener('position_changed', updateDirectionLine);
+            streetView.addListener('pov_changed', updateDirectionLine);
+            
+            // Initialize direction line
+            setTimeout(updateDirectionLine, 500); // Small delay to ensure street view is ready
             
             // Load GeoJSON data if available
             if (typeof yourGeoJsonData !== 'undefined') {
@@ -1848,6 +1907,9 @@
             mainMap.addListener('click', (e) => {
                 if (measurementActive) {
                     handleMeasurementClick(e.latLng);
+                } else if (markerPlacementActive) {
+                    // Custom marker placement mode
+                    placeCustomMarker(e.latLng);
                 } else if (drawingMode) {
                     // Drawing mode
                     handleDrawingClick(e.latLng);
@@ -2906,6 +2968,180 @@
             document.getElementById('perp-cars').textContent = (distance / 3).toFixed(1);
         }
 
+        // Custom Marker Functions
+        function toggleMarkerMode() {
+            markerPlacementActive = !markerPlacementActive;
+            
+            const btn = document.getElementById('markerBtn');
+            const icon = document.getElementById('markerIcon');
+            const text = document.getElementById('markerText');
+            
+            if (markerPlacementActive) {
+                btn.classList.add('active');
+                icon.textContent = '🎯';
+                text.textContent = 'Click to Place Markers';
+                showToast('Marker placement mode activated. Click on the map to place markers.');
+                
+                // Disable other drawing modes
+                if (measurementActive) {
+                    toggleMeasurement();
+                }
+                if (drawingMode) {
+                    setDrawingMode(null);
+                }
+            } else {
+                btn.classList.remove('active');
+                icon.textContent = '📌';
+                text.textContent = 'Start Placing Markers';
+                showToast('Marker placement mode deactivated.');
+            }
+            
+            updateMarkerCursor();
+        }
+
+        function placeCustomMarker(latLng) {
+            markerCounter++;
+            
+            const marker = new google.maps.Marker({
+                position: latLng,
+                map: mainMap,
+                title: `Custom Marker ${markerCounter}`,
+                icon: {
+                    url: 'https://maps.google.com/mapfiles/kml/paddle/red-circle.png',
+                    scaledSize: new google.maps.Size(40, 40),
+                    anchor: new google.maps.Point(20, 40)
+                },
+                animation: google.maps.Animation.DROP,
+                draggable: true
+            });
+
+            // Explicitly make marker visible in street view
+            if (streetView) {
+                marker.setMap(mainMap);
+                marker.setOptions({ map: mainMap });
+                // Force marker to be visible in street view by setting it after creation
+                setTimeout(() => {
+                    marker.setOptions({ map: mainMap, streetView: streetView });
+                }, 100);
+            }
+
+            // Add click listener to remove marker
+            marker.addListener('click', () => {
+                removeCustomMarker(marker);
+            });
+
+            // Add drag listener to update street view position without navigating there
+            marker.addListener('drag', () => {
+                // Note: We don't automatically navigate street view to marker position
+                // to meet the requirement that "peg man should not automatically navigate"
+            });
+
+            // Store marker in array
+            customMarkers.push(marker);
+            
+            // Update marker count display
+            updateMarkerCount();
+            
+            showToast(`Custom marker ${markerCounter} placed! Click marker to remove it.`);
+        }
+
+        function removeCustomMarker(markerToRemove) {
+            // Remove from map
+            markerToRemove.setMap(null);
+            
+            // Remove from array
+            const index = customMarkers.indexOf(markerToRemove);
+            if (index > -1) {
+                customMarkers.splice(index, 1);
+            }
+            
+            // Update marker count display
+            updateMarkerCount();
+            
+            showToast('Custom marker removed.');
+        }
+
+        function clearCustomMarkers() {
+            if (customMarkers.length === 0) {
+                showToast('No custom markers to clear.');
+                return;
+            }
+            
+            // Remove all markers from map
+            customMarkers.forEach(marker => {
+                marker.setMap(null);
+            });
+            
+            // Clear array
+            customMarkers = [];
+            markerCounter = 0;
+            
+            // Update marker count display
+            updateMarkerCount();
+            
+            showToast('All custom markers cleared.');
+        }
+
+        function updateMarkerCount() {
+            const countElement = document.getElementById('marker-count');
+            if (countElement) {
+                countElement.textContent = `Markers: ${customMarkers.length}`;
+            }
+        }
+
+        function updateMarkerCursor() {
+            if (markerPlacementActive) {
+                mainMap.setOptions({ cursor: 'crosshair' });
+            } else {
+                mainMap.setOptions({ cursor: 'default' });
+            }
+        }
+
+        // Direction Line Functions
+        function updateDirectionLine() {
+            if (!streetView || !mainMap) return;
+            
+            const position = streetView.getPosition();
+            const pov = streetView.getPov();
+            
+            if (!position || !pov) return;
+            
+            // Clear existing direction line
+            if (directionLine) {
+                directionLine.setMap(null);
+            }
+            
+            // Calculate the end point of the direction line
+            const heading = pov.heading; // heading in degrees
+            const distance = 10; // meters - length of the direction line
+            
+            // Convert heading to radians and calculate end point
+            const headingRad = (heading * Math.PI) / 180;
+            const endPoint = google.maps.geometry.spherical.computeOffset(
+                position,
+                distance,
+                heading
+            );
+            
+            // Create the direction line
+            directionLine = new google.maps.Polyline({
+                path: [position, endPoint],
+                geodesic: false,
+                strokeColor: '#FF6B6B', // Red color for visibility
+                strokeOpacity: 0.8,
+                strokeWeight: 3,
+                map: mainMap,
+                zIndex: 1000 // Make sure it appears above other elements
+            });
+        }
+
+        function clearDirectionLine() {
+            if (directionLine) {
+                directionLine.setMap(null);
+                directionLine = null;
+            }
+        }
+
         function clearAll() {
             // Stop measurement mode if active
             if (measurementActive) {
@@ -2942,6 +3178,17 @@
             
             // Clear all drawings
             clearDrawings();
+            
+            // Clear custom markers
+            clearCustomMarkers();
+            
+            // Stop marker placement mode if active
+            if (markerPlacementActive) {
+                toggleMarkerMode();
+            }
+            
+            // Clear direction line
+            clearDirectionLine();
             
             // Clear measurement labels
             measurementLabels.forEach(label => label.setMap(null));
@@ -2997,6 +3244,10 @@
                         e.preventDefault();
                         toggleMeasurement();
                         break;
+                    case 'j':
+                        e.preventDefault();
+                        toggleMarkerMode();
+                        break;
                     case 'k':
                         e.preventDefault();
                         clearAll();
@@ -3017,7 +3268,7 @@
                         e.preventDefault();
                         setDrawingMode('line');
                         break;
-                    case 'r':
+                    case 'o':
                         e.preventDefault();
                         setDrawingMode('parallel');
                         break;
