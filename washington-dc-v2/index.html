@@ -1426,7 +1426,7 @@
                 
                 if (this.div) {
                     this.div.style.left = pos.x + 'px';
-                    this.div.style.top = (pos.y - 50) + 'px'; // Position above the marker
+                    this.div.style.top = (pos.y - 65) + 'px'; // Position above the marker
                 }
             };
             
@@ -2806,8 +2806,8 @@
                         map: mainMap,
                         animation: google.maps.Animation.BOUNCE,
                         icon: {
-                            url: "http://maps.google.com/mapfiles/ms/icons/yellow-dot.png",
-                            scaledSize: new google.maps.Size(48, 48)
+                            url: "https://maps.google.com/mapfiles/kml/pal3/icon40.png",
+                            scaledSize: new google.maps.Size(20, 20)
                         },
                         title: `Object: ${feature.getProperty("object")}`
                     });
