@@ -1373,15 +1373,34 @@
             streetView.addListener('position_changed', updateDirectionLine);
             streetView.addListener('pov_changed', updateDirectionLine);
             
+            // Add event listeners for Street View marker updates
+            streetView.addListener('position_changed', updateStreetViewMarkerVisibility);
+            streetView.addListener('pov_changed', updateStreetViewMarkerVisibility);
+            
+            // Add event listeners for Street View line updates
+            streetView.addListener('position_changed', updateStreetViewLineVisibility);
+            streetView.addListener('pov_changed', updateStreetViewLineVisibility);
+            
+            // Add event listeners for Street View custom marker updates
+            streetView.addListener('position_changed', updateStreetViewCustomMarkerVisibility);
+            streetView.addListener('pov_changed', updateStreetViewCustomMarkerVisibility);
+            
             // Initialize direction line
             setTimeout(updateDirectionLine, 500); // Small delay to ensure street view is ready
             
-            // Load GeoJSON data if available
-            if (typeof yourGeoJsonData !== 'undefined') {
-                mainMap.data.addGeoJson(yourGeoJsonData);
-                styleGeoJsonData();
-                collectAllFeatures();
-            }
+            // Initialize Street View markers and lines with a delay
+            setTimeout(() => {
+                createStreetViewCustomMarkers();
+                createStreetViewLines();
+            }, 1000);
+            
+        // Load GeoJSON data if available
+        if (typeof yourGeoJsonData !== 'undefined') {
+            mainMap.data.addGeoJson(yourGeoJsonData);
+            styleGeoJsonData();
+            collectAllFeatures();
+            createStreetViewMarkers();
+        }
             
             // Set up event listeners
             setupEventListeners();
@@ -1505,7 +1524,7 @@
                     labelOverlay.setMap(null);
                     areaLabels.delete(posKey);
                 }
-            }, 60000);
+            }, 2000);
         }
 
         // Function to clear all area labels
@@ -1647,7 +1666,7 @@
             // Auto-remove after 5 seconds
             setTimeout(() => {
                 indicator.setMap(null);
-            }, 5000);
+            }, 2000);
             
             return indicator;
         }
@@ -1867,23 +1886,15 @@
                 map: mainMap,
                 icon: {
                     path: google.maps.SymbolPath.CIRCLE,
-                    scale: 12,
+                    scale: 7,
                     fillColor: "#FF9800",
-                    fillOpacity: 0.8,
+                    fillOpacity: 1,
                     strokeColor: "#ffffff",
                     strokeWeight: 3
                 },
                 title: "Selected Location",
-                zIndex: 999,
-                animation: google.maps.Animation.BOUNCE
+                zIndex: 999
             });
-            
-            // Stop bouncing after 2 seconds
-            setTimeout(() => {
-                if (selectedLocationMarker) {
-                    selectedLocationMarker.setAnimation(null);
-                }
-            }, 2000);
         }
 
         function setupEventListeners() {
@@ -2312,6 +2323,9 @@
 
                 // Add to drawn lines collection for auto-combining
                 drawnLines.push(feature);
+                
+                // Create Street View version of this line
+                createStreetViewLines();
 
                 // Add drag listeners to both endpoints
                 setupLineDragListeners(feature, 0); // First endpoint
@@ -2563,6 +2577,9 @@
             // Setup drag listeners for all lines (including new ones)
             setupMultiLineStringDragListeners();
             
+            // Update Street View lines
+            createStreetViewLines();
+            
             updateGeoJSONDisplay();
             showToast(`📏 Line ${drawnLines.length} added to MultiLineString! Total: ${formatDistance(totalLength)}`);
         }
@@ -2651,6 +2668,9 @@
                 totalPosition,
                 totalText
             );
+            
+            // Update Street View lines
+            createStreetViewLines();
         }
 
 
@@ -3015,29 +3035,27 @@
                 draggable: true
             });
 
-            // Explicitly make marker visible in street view
-            if (streetView) {
-                marker.setMap(mainMap);
-                marker.setOptions({ map: mainMap });
-                // Force marker to be visible in street view by setting it after creation
-                setTimeout(() => {
-                    marker.setOptions({ map: mainMap, streetView: streetView });
-                }, 100);
-            }
+            // Store marker in array first
+            customMarkers.push(marker);
 
             // Add click listener to remove marker
             marker.addListener('click', () => {
                 removeCustomMarker(marker);
             });
 
-            // Add drag listener to update street view position without navigating there
+            // Add drag listener to update street view markers when dragged
             marker.addListener('drag', () => {
-                // Note: We don't automatically navigate street view to marker position
-                // to meet the requirement that "peg man should not automatically navigate"
+                // Update Street View markers to reflect new position
+                createStreetViewCustomMarkers();
+            });
+            
+            marker.addListener('dragend', () => {
+                // Final update when dragging is complete
+                createStreetViewCustomMarkers();
             });
 
-            // Store marker in array
-            customMarkers.push(marker);
+            // Create Street View version of this marker
+            createStreetViewCustomMarkers();
             
             // Update marker count display
             updateMarkerCount();
@@ -3054,6 +3072,9 @@
             if (index > -1) {
                 customMarkers.splice(index, 1);
             }
+            
+            // Recreate Street View markers to reflect the removal
+            createStreetViewCustomMarkers();
             
             // Update marker count display
             updateMarkerCount();
@@ -3076,6 +3097,9 @@
             customMarkers = [];
             markerCounter = 0;
             
+            // Clear Street View custom markers
+            clearStreetViewCustomMarkers();
+            
             // Update marker count display
             updateMarkerCount();
             
@@ -3095,6 +3119,349 @@
             } else {
                 mainMap.setOptions({ cursor: 'default' });
             }
+        }
+
+        // Street View GeoJSON Markers
+        let streetViewMarkers = [];
+        
+        // Street View Custom Markers
+        let streetViewCustomMarkers = [];
+
+        function createStreetViewMarkers() {
+            // Clear existing Street View markers
+            clearStreetViewMarkers();
+            
+            if (!streetView || !mainMap) return;
+            
+            // Create markers for each GeoJSON feature
+            mainMap.data.forEach(feature => {
+                const geometry = feature.getGeometry();
+                if (geometry.getType() === 'Point') {
+                    const position = geometry.get();
+                    
+                    // Create a marker that's visible in Street View
+                    const marker = new google.maps.Marker({
+                        position: position,
+                        map: streetView,
+                        title: `Area: ${feature.getProperty("area") || "N/A"} | Object: ${feature.getProperty("object") || "N/A"}`,
+                        icon: {
+                            url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+                            scaledSize: new google.maps.Size(32, 32),
+                            anchor: new google.maps.Point(16, 32)
+                        },
+                        optimized: false // Important for Street View visibility
+                    });
+                    
+                    // Add click listener to show info
+                    marker.addListener('click', () => {
+                        const infoWindow = new google.maps.InfoWindow({
+                            content: `
+                                <div style="font-family: Arial, sans-serif; padding: 8px;">
+                                    <h4 style="margin: 0 0 8px 0; color: #333;">Location Details</h4>
+                                    <p style="margin: 4px 0;"><strong>Area:</strong> ${feature.getProperty("area") || "N/A"}</p>
+                                    <p style="margin: 4px 0;"><strong>Object ID:</strong> ${feature.getProperty("object") || "N/A"}</p>
+                                    <p style="margin: 4px 0;"><strong>Coordinates:</strong> ${position.lat().toFixed(6)}, ${position.lng().toFixed(6)}</p>
+                                </div>
+                            `
+                        });
+                        infoWindow.open(streetView, marker);
+                        
+                        // Also update the sidebar
+                        updateLocationDetails({
+                            objectId: feature.getProperty("object") || "N/A",
+                            route: feature.getProperty("area") || "N/A",
+                            coordinates: position.toUrlValue(6)
+                        });
+                    });
+                    
+                    streetViewMarkers.push(marker);
+                }
+            });
+            
+            // Update marker visibility when Street View position changes
+            updateStreetViewMarkerVisibility();
+        }
+
+        function clearStreetViewMarkers() {
+            streetViewMarkers.forEach(marker => {
+                marker.setMap(null);
+            });
+            streetViewMarkers = [];
+        }
+
+        function updateStreetViewMarkerVisibility() {
+            if (!streetView || streetViewMarkers.length === 0) return;
+            
+            const streetViewPosition = streetView.getPosition();
+            const pov = streetView.getPov();
+            
+            if (!streetViewPosition || !pov) return;
+            
+            const maxDistance = 500; // meters - markers beyond this won't be shown
+            const fieldOfView = 90; // degrees on each side of heading
+            
+            streetViewMarkers.forEach(marker => {
+                const markerPosition = marker.getPosition();
+                const distance = google.maps.geometry.spherical.computeDistanceBetween(
+                    streetViewPosition, markerPosition
+                );
+                
+                if (distance <= maxDistance) {
+                    // Calculate bearing from Street View to marker
+                    const bearing = google.maps.geometry.spherical.computeHeading(
+                        streetViewPosition, markerPosition
+                    );
+                    
+                    // Normalize angles to 0-360
+                    const normalizedBearing = ((bearing + 360) % 360);
+                    const normalizedHeading = ((pov.heading + 360) % 360);
+                    
+                    // Calculate angle difference
+                    let angleDiff = Math.abs(normalizedBearing - normalizedHeading);
+                    if (angleDiff > 180) {
+                        angleDiff = 360 - angleDiff;
+                    }
+                    
+                    // Show marker if it's within field of view
+                    if (angleDiff <= fieldOfView) {
+                        marker.setVisible(true);
+                        // Adjust marker size based on distance
+                        const scale = Math.max(0.5, 1 - (distance / maxDistance) * 0.5);
+                        marker.setIcon({
+                            url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+                            scaledSize: new google.maps.Size(32 * scale, 32 * scale),
+                            anchor: new google.maps.Point(16 * scale, 32 * scale)
+                        });
+                    } else {
+                        marker.setVisible(false);
+                    }
+                } else {
+                    marker.setVisible(false);
+                }
+            });
+        }
+
+        function createStreetViewCustomMarkers() {
+            // Clear existing Street View custom markers
+            clearStreetViewCustomMarkers();
+            
+            if (!streetView || customMarkers.length === 0) return;
+            
+            // Create Street View markers for each custom marker
+            customMarkers.forEach((customMarker, index) => {
+                const position = customMarker.getPosition();
+                
+                // Create a marker that's visible in Street View
+                const streetViewMarker = new google.maps.Marker({
+                    position: position,
+                    map: streetView,
+                    title: `Custom Marker ${index + 1}`,
+                    icon: {
+                        url: 'https://maps.google.com/mapfiles/kml/paddle/red-circle.png',
+                        scaledSize: new google.maps.Size(40, 40),
+                        anchor: new google.maps.Point(20, 40)
+                    },
+                    optimized: false // Important for Street View visibility
+                });
+                
+                // Add click listener to show info and remove marker
+                streetViewMarker.addListener('click', () => {
+                    const infoWindow = new google.maps.InfoWindow({
+                        content: `
+                            <div style="font-family: Arial, sans-serif; padding: 8px;">
+                                <h4 style="margin: 0 0 8px 0; color: #333;">Custom Marker ${index + 1}</h4>
+                                <p style="margin: 4px 0;"><strong>Coordinates:</strong> ${position.lat().toFixed(6)}, ${position.lng().toFixed(6)}</p>
+                                <button onclick="removeCustomMarkerFromStreetView(${index})" style="background: #f44336; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Remove Marker</button>
+                            </div>
+                        `
+                    });
+                    infoWindow.open(streetView, streetViewMarker);
+                });
+                
+                streetViewCustomMarkers.push({
+                    marker: streetViewMarker,
+                    originalMarker: customMarker,
+                    index: index
+                });
+            });
+            
+            // Update marker visibility when Street View position changes
+            updateStreetViewCustomMarkerVisibility();
+        }
+
+        function clearStreetViewCustomMarkers() {
+            streetViewCustomMarkers.forEach(item => {
+                item.marker.setMap(null);
+            });
+            streetViewCustomMarkers = [];
+        }
+
+        function updateStreetViewCustomMarkerVisibility() {
+            if (!streetView || streetViewCustomMarkers.length === 0) return;
+            
+            const streetViewPosition = streetView.getPosition();
+            const pov = streetView.getPov();
+            
+            if (!streetViewPosition || !pov) return;
+            
+            const maxDistance = 500; // meters - markers beyond this won't be shown
+            const fieldOfView = 90; // degrees on each side of heading
+            
+            streetViewCustomMarkers.forEach(item => {
+                const markerPosition = item.marker.getPosition();
+                const distance = google.maps.geometry.spherical.computeDistanceBetween(
+                    streetViewPosition, markerPosition
+                );
+                
+                if (distance <= maxDistance) {
+                    // Calculate bearing from Street View to marker
+                    const bearing = google.maps.geometry.spherical.computeHeading(
+                        streetViewPosition, markerPosition
+                    );
+                    
+                    // Normalize angles to 0-360
+                    const normalizedBearing = ((bearing + 360) % 360);
+                    const normalizedHeading = ((pov.heading + 360) % 360);
+                    
+                    // Calculate angle difference
+                    let angleDiff = Math.abs(normalizedBearing - normalizedHeading);
+                    if (angleDiff > 180) {
+                        angleDiff = 360 - angleDiff;
+                    }
+                    
+                    // Show marker if it's within field of view
+                    if (angleDiff <= fieldOfView) {
+                        item.marker.setVisible(true);
+                        // Adjust marker size based on distance
+                        const scale = Math.max(0.5, 1 - (distance / maxDistance) * 0.5);
+                        item.marker.setIcon({
+                            url: 'https://maps.google.com/mapfiles/kml/paddle/red-circle.png',
+                            scaledSize: new google.maps.Size(40 * scale, 40 * scale),
+                            anchor: new google.maps.Point(20 * scale, 40 * scale)
+                        });
+                    } else {
+                        item.marker.setVisible(false);
+                    }
+                } else {
+                    item.marker.setVisible(false);
+                }
+            });
+        }
+
+        // Helper function to remove custom marker from street view (called from info window)
+        function removeCustomMarkerFromStreetView(index) {
+            const originalMarker = customMarkers[index];
+            if (originalMarker) {
+                removeCustomMarker(originalMarker);
+            }
+        }
+        
+        // Make function globally available for onclick handlers
+        window.removeCustomMarkerFromStreetView = removeCustomMarkerFromStreetView;
+
+        // Street View Lines
+        let streetViewLines = [];
+
+        function createStreetViewLines() {
+            // Clear existing Street View lines
+            clearStreetViewLines();
+            
+            if (!streetView || drawnLines.length === 0) return;
+            
+            // Create Street View polylines for each drawn line
+            drawnLines.forEach(lineFeature => {
+                const path = lineFeature.markers.map(marker => marker.getPosition());
+                
+                const streetViewPolyline = new google.maps.Polyline({
+                    path: path,
+                    geodesic: true,
+                    strokeColor: lineFeature.polyline.get('strokeColor') || "#2196F3",
+                    strokeOpacity: 0.8,
+                    strokeWeight: 4,
+                    map: streetView,
+                    clickable: false
+                });
+                
+                streetViewLines.push({
+                    polyline: streetViewPolyline,
+                    originalLine: lineFeature
+                });
+            });
+            
+            // Update line visibility based on Street View position
+            updateStreetViewLineVisibility();
+        }
+
+        function clearStreetViewLines() {
+            streetViewLines.forEach(line => {
+                line.polyline.setMap(null);
+            });
+            streetViewLines = [];
+        }
+
+        function updateStreetViewLineVisibility() {
+            if (!streetView || streetViewLines.length === 0) return;
+            
+            const streetViewPosition = streetView.getPosition();
+            const pov = streetView.getPov();
+            
+            if (!streetViewPosition || !pov) return;
+            
+            const maxDistance = 1000; // meters - lines beyond this won't be shown
+            const fieldOfView = 120; // degrees on each side of heading (wider for lines)
+            
+            streetViewLines.forEach(streetViewLine => {
+                const polyline = streetViewLine.polyline;
+                const originalLine = streetViewLine.originalLine;
+                
+                // Check if any point of the line is within visible range
+                let isVisible = false;
+                let minDistance = Infinity;
+                
+                originalLine.markers.forEach(marker => {
+                    const markerPosition = marker.getPosition();
+                    const distance = google.maps.geometry.spherical.computeDistanceBetween(
+                        streetViewPosition, markerPosition
+                    );
+                    
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                    }
+                    
+                    if (distance <= maxDistance) {
+                        // Calculate bearing from Street View to this point
+                        const bearing = google.maps.geometry.spherical.computeHeading(
+                            streetViewPosition, markerPosition
+                        );
+                        
+                        // Normalize angles to 0-360
+                        const normalizedBearing = ((bearing + 360) % 360);
+                        const normalizedHeading = ((pov.heading + 360) % 360);
+                        
+                        // Calculate angle difference
+                        let angleDiff = Math.abs(normalizedBearing - normalizedHeading);
+                        if (angleDiff > 180) {
+                            angleDiff = 360 - angleDiff;
+                        }
+                        
+                        // Show line if any point is within field of view
+                        if (angleDiff <= fieldOfView) {
+                            isVisible = true;
+                        }
+                    }
+                });
+                
+                if (isVisible) {
+                    polyline.setVisible(true);
+                    // Adjust line opacity based on distance
+                    const opacity = Math.max(0.3, 1 - (minDistance / maxDistance) * 0.7);
+                    polyline.setOptions({
+                        strokeOpacity: opacity
+                    });
+                } else {
+                    polyline.setVisible(false);
+                }
+            });
         }
 
         // Direction Line Functions
@@ -3196,6 +3563,9 @@
             
             // Reset drawn lines array
             drawnLines = [];
+            
+            // Clear Street View lines
+            clearStreetViewLines();
             
             // Clear filter and show all markers
             clearFilter();
