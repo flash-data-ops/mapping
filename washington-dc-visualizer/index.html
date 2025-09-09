@@ -303,27 +303,40 @@
         }
 
         .mapboxgl-popup-close-button {
-            background: rgba(255, 255, 255, 0.9) !important;
+            background: rgba(255, 255, 255, 0.95) !important;
             border-radius: 50% !important;
-            width: 28px !important;
-            height: 28px !important;
-            font-size: 16px !important;
+            width: 30px !important;
+            height: 30px !important;
+            font-size: 18px !important;
+            font-weight: bold !important;
             color: #64748b !important;
-            right: 12px !important;
-            top: 12px !important;
+            right: 8px !important;
+            top: 8px !important;
             padding: 0 !important;
-            border: 1px solid rgba(0, 0, 0, 0.1) !important;
+            border: 1px solid rgba(0, 0, 0, 0.15) !important;
             transition: all 0.2s ease !important;
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
+            cursor: pointer !important;
+            z-index: 1000 !important;
+            line-height: 1 !important;
+            text-decoration: none !important;
+            outline: none !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
         }
 
         .mapboxgl-popup-close-button:hover {
             background: rgba(239, 68, 68, 0.1) !important;
             color: #ef4444 !important;
-            border-color: rgba(239, 68, 68, 0.2) !important;
-            transform: scale(1.05) !important;
+            border-color: rgba(239, 68, 68, 0.3) !important;
+            transform: scale(1.1) !important;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15) !important;
+        }
+
+        .mapboxgl-popup-close-button:active {
+            transform: scale(0.95) !important;
+            transition: transform 0.1s ease !important;
         }
 
         /* Custom popup content styling */
@@ -1300,15 +1313,27 @@
                         </div>
                     `;
                     
-                    new mapboxgl.Popup({
+                    const popup = new mapboxgl.Popup({
                         closeButton: true,
                         closeOnClick: false,
+                        closeOnMove: false,
                         maxWidth: '260px',
                         className: 'custom-popup'
                     })
                         .setLngLat(e.lngLat)
                         .setHTML(content)
                         .addTo(map);
+                    
+                    // Ensure close button is properly clickable
+                    setTimeout(() => {
+                        const closeButton = popup.getElement().querySelector('.mapboxgl-popup-close-button');
+                        if (closeButton) {
+                            closeButton.addEventListener('click', (event) => {
+                                event.stopPropagation();
+                                popup.remove();
+                            });
+                        }
+                    }, 10);
                 });
 
                 // Change cursor on hover
@@ -1331,6 +1356,7 @@
                 .setPopup(new mapboxgl.Popup({
                     closeButton: true,
                     closeOnClick: false,
+                    closeOnMove: false,
                     maxWidth: '220px',
                     className: 'custom-popup'
                 }).setHTML(`
