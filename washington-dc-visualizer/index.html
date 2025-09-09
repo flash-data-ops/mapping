@@ -43,84 +43,192 @@
 
         .controls {
             background: white;
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.06), 0 4px 8px rgba(0,0,0,0.03);
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .controls-header {
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .controls-header h2 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .controls-header h2::before {
+            content: '⚙️';
+            font-size: 1.1rem;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .control-section {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .control-section:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .control-section h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #374151;
+            margin: 0 0 12px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .input-group {
-            margin-bottom: 20px;
+            margin-bottom: 12px;
+        }
+
+        .input-group:last-child {
+            margin-bottom: 0;
         }
 
         .input-group label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             font-weight: 600;
-            color: #333;
+            color: #374151;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
         }
 
-        .input-group input {
+        .input-group input,
+        .input-group select {
             width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e1e5e9;
+            padding: 10px 12px;
+            border: 2px solid #e2e8f0;
             border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s ease;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: white;
+            color: #1e293b;
         }
 
-        .input-group input:focus {
+        .input-group input:focus,
+        .input-group select:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .input-group input::placeholder {
+            color: #94a3b8;
         }
 
         .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
             color: white;
             border: none;
-            padding: 12px 30px;
+            padding: 10px 16px;
             border-radius: 8px;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            margin-right: 10px;
+            transition: all 0.3s ease;
+            margin-right: 8px;
+            margin-bottom: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
         }
 
         .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
         }
 
         .btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+            box-shadow: 0 4px 12px rgba(100, 116, 139, 0.2);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 8px 20px rgba(100, 116, 139, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+        }
+
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
         }
 
         .status {
-            margin-top: 15px;
-            padding: 10px;
-            border-radius: 6px;
+            margin-top: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
             font-weight: 500;
+            font-size: 13px;
+            border-left: 3px solid;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .status.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+            color: #166534;
+            border-left-color: #22c55e;
         }
 
         .status.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+            background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
+            color: #991b1b;
+            border-left-color: #ef4444;
         }
 
         .status.loading {
-            background: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeaa7;
+            background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
+            color: #92400e;
+            border-left-color: #f59e0b;
         }
 
         .map-container {
@@ -244,15 +352,54 @@
             }
             
             .controls {
-                padding: 20px;
+                padding: 16px;
+                margin-bottom: 12px;
+            }
+            
+            .controls-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            
+            .control-section {
+                padding: 14px;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+                margin-right: 0;
+                padding: 12px 16px;
             }
             
             .map-container {
-                height: 400px;
+                height: 450px;
             }
 
             .mapboxgl-popup-content {
                 max-width: 280px !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .controls {
+                padding: 12px;
+            }
+            
+            .control-section {
+                padding: 12px;
+            }
+            
+            .controls-header h2 {
+                font-size: 1.2rem;
+            }
+            
+            .map-container {
+                height: 400px;
             }
         }
     </style>
@@ -269,43 +416,70 @@
             <input type="hidden" id="sheetUrl" 
                    value="https://docs.google.com/spreadsheets/d/1gdH0NSk4YqApQ2OEXc_X1LjIu0M6QbSCQ2msucAsLBw/edit?gid=0#gid=0">
             
-            <div class="input-group">
-                <label for="searchObjectId">Search Object ID:</label>
-                <input type="text" id="searchObjectId" placeholder="Enter Object ID to search..." 
-                       onkeypress="handleSearchKeyPress(event)" oninput="searchObjectId()">
+            <div class="controls-header">
+                <h2>Map Controls</h2>
             </div>
             
-            <div class="input-group">
-                <label for="filterMapper">Filter by Mapper:</label>
-                <select id="filterMapper" onchange="applyFilters()">
-                    <option value="">All Mappers</option>
-                </select>
-            </div>
-            
-            <div class="input-group">
-                <label for="filterZone">Filter by Zone:</label>
-                <select id="filterZone" onchange="applyFilters()">
-                    <option value="">All Zones</option>
-                </select>
-            </div>
-            
-            <button class="btn" onclick="loadGeoJSONData()">
-                <span id="loadBtnText">Refresh Data</span>
-            </button>
-            
-            <button class="btn" onclick="clearMap()" id="clearBtn" disabled>Clear Map</button>
-            
-            <button class="btn" onclick="clearFilters()">Clear Filters</button>
-            
-            <div class="input-group">
-                <label for="mapStyle">Map Style:</label>
-                <select id="mapStyle" onchange="changeMapStyle()">
-                    <option value="streets-v12">Streets</option>
-                    <option value="satellite-streets-v12">Satellite</option>
-                    <option value="outdoors-v12">Outdoors</option>
-                    <option value="light-v11">Light</option>
-                    <option value="dark-v11">Dark</option>
-                </select>
+            <div class="controls-grid">
+                <!-- Search Section -->
+                <div class="control-section">
+                    <h3>🔍 Search & Filter</h3>
+                    <div class="input-group">
+                        <label for="searchObjectId">Object ID Search</label>
+                        <input type="text" id="searchObjectId" placeholder="Enter Object ID to search..." 
+                               onkeypress="handleSearchKeyPress(event)" oninput="searchObjectId()">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="filterMapper">Filter by Mapper</label>
+                        <select id="filterMapper" onchange="applyFilters()">
+                            <option value="">All Mappers</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="filterZone">Filter by Zone</label>
+                        <select id="filterZone" onchange="applyFilters()">
+                            <option value="">All Zones</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Data Management Section -->
+                <div class="control-section">
+                    <h3>📊 Data Management</h3>
+                    <div class="button-group">
+                        <button class="btn" onclick="loadGeoJSONData()">
+                            <span>🔄</span>
+                            <span id="loadBtnText">Refresh Data</span>
+                        </button>
+                        
+                        <button class="btn btn-danger" onclick="clearMap()" id="clearBtn" disabled>
+                            <span>🗑️</span>
+                            <span>Clear Map</span>
+                        </button>
+                        
+                        <button class="btn btn-secondary" onclick="clearFilters()">
+                            <span>🧹</span>
+                            <span>Clear Filters</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Map Settings Section -->
+                <div class="control-section">
+                    <h3>🗺️ Map Settings</h3>
+                    <div class="input-group">
+                        <label for="mapStyle">Map Style</label>
+                        <select id="mapStyle" onchange="changeMapStyle()">
+                            <option value="streets-v12">🗺️ Streets</option>
+                            <option value="satellite-streets-v12">🛰️ Satellite</option>
+                            <option value="outdoors-v12">🏔️ Outdoors</option>
+                            <option value="light-v11">☀️ Light</option>
+                            <option value="dark-v11">🌙 Dark</option>
+                        </select>
+                    </div>
+                </div>
             </div>
             
             <div id="status"></div>
@@ -315,21 +489,6 @@
             <div id="map"></div>
         </div>
 
-        <div class="legend" id="legend" style="display: none;">
-            <h3>🗺️ Map Legend</h3>
-            <div class="legend-item">
-                <div class="legend-color" style="background: #2563eb; box-shadow: 0 0 4px rgba(37, 99, 235, 0.3);"></div>
-                <span>Simple Routes (2 points)</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background: #16a34a; box-shadow: 0 0 4px rgba(22, 163, 74, 0.3);"></div>
-                <span>Multi-segment Routes</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background: #dc2626; border-radius: 50%; width: 12px; height: 12px;"></div>
-                <span>Point Locations</span>
-            </div>
-        </div>
     </div>
 
     <script>
@@ -651,9 +810,9 @@
                     },
                     'paint': {
                         'line-color': 'rgba(0, 0, 0, 0.3)',
-                        'line-width': 7,
+                        'line-width': 3,
                         'line-opacity': 0.6,
-                        'line-blur': 2
+                        'line-blur': 1
                     }
                 });
 
@@ -667,18 +826,14 @@
                         'line-cap': 'round'
                     },
                     'paint': {
-                        'line-color': [
-                            'case',
-                            ['==', ['get', 'segmentCount'], null], '#2563eb', // Simple routes - blue
-                            '#16a34a' // Multi-segment routes - green
-                        ],
+                        'line-color': '#000000', // Black color for all lines
                         'line-width': [
                             'interpolate',
                             ['linear'],
                             ['zoom'],
-                            10, 3,
-                            15, 5,
-                            18, 8
+                            10, 1,
+                            15, 2,
+                            18, 3
                         ],
                         'line-opacity': 0.9
                     }
@@ -892,8 +1047,6 @@
                 
                 showStatus(`Successfully loaded ${featureCount} features!`, 'success');
                 
-                // Show legend
-                document.getElementById('legend').style.display = 'block';
                 document.getElementById('clearBtn').disabled = false;
 
             } catch (error) {
@@ -936,7 +1089,6 @@
                 searchObjectId: ''
             };
             
-            document.getElementById('legend').style.display = 'none';
             document.getElementById('clearBtn').disabled = true;
         }
 
@@ -1037,11 +1189,9 @@
             if (filteredFeatures.length > 0) {
                 addFeaturesToMap(filteredFeatures);
                 showStatus(`Showing ${filteredFeatures.length} of ${allFeatures.length} features`, 'success');
-                document.getElementById('legend').style.display = 'block';
                 document.getElementById('clearBtn').disabled = false;
             } else {
                 showStatus('No features match the current filters', 'error');
-                document.getElementById('legend').style.display = 'none';
             }
         }
 
