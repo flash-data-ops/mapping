@@ -736,6 +736,12 @@
             map.on('load', () => {
                 showStatus('Map initialized successfully', 'success');
                 
+                // Add red arrow icon for line end indicators
+                map.loadImage('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8IS0tIFNoYWRvdyBlZmZlY3QgLS0+CiAgPHBhdGggZD0iTTMuNSAxMC41TDE2LjUgMTAuNU0xNi41IDEwLjVMMTIuNSA2LjVNMTYuNSAxMC41TDEyLjUgMTQuNSIgc3Ryb2tlPSIjN2YxZDFkIiBzdHJva2Utd2lkdGg9IjMuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBvcGFjaXR5PSIwLjQiLz4KICA8IS0tIE1haW4gYXJyb3cgLS0+CiAgPHBhdGggZD0iTTMgMTBMMTYgMTBNMTYgMTBMMTIgNk0xNiAxMEwxMiAxNCIgc3Ryb2tlPSIjZWY0NDQ0IiBzdHJva2Utd2lkdGg9IjMuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPgo=', (error, image) => {
+                    if (error) throw error;
+                    map.addImage('arrow-icon', image);
+                });
+                
                 // Auto-load data after map is loaded
                 setTimeout(() => {
                     loadGeoJSONData();
@@ -954,9 +960,11 @@
             let featureCount = 0;
             const bounds = new mapboxgl.LngLatBounds();
 
-            // Create GeoJSON FeatureCollection for lines
+            // Create GeoJSON FeatureCollection for lines, start points, and end points
             const lineFeatures = [];
             const pointFeatures = [];
+            const startPointFeatures = [];
+            const endPointFeatures = [];
 
             features.forEach((feature, index) => {
                 if (!feature.geometry || !feature.geometry.coordinates) return;
@@ -966,18 +974,60 @@
                 if (geometry.type === 'LineString' || geometry.type === 'MultiLineString') {
                     lineFeatures.push(feature);
                     
-                    // Extend bounds for LineString
+                    // Create start and end point features
+                    let startCoord, endCoord;
+                    
                     if (geometry.type === 'LineString') {
+                        startCoord = geometry.coordinates[0];
+                        endCoord = geometry.coordinates[geometry.coordinates.length - 1];
+                        
                         geometry.coordinates.forEach(coord => {
                             bounds.extend(coord);
                         });
                     } else if (geometry.type === 'MultiLineString') {
+                        // For MultiLineString, use the first point of first line and last point of last line
+                        const firstLine = geometry.coordinates[0];
+                        const lastLine = geometry.coordinates[geometry.coordinates.length - 1];
+                        startCoord = firstLine[0];
+                        endCoord = lastLine[lastLine.length - 1];
+                        
                         geometry.coordinates.forEach(lineString => {
                             lineString.forEach(coord => {
                                 bounds.extend(coord);
                             });
                         });
                     }
+                    
+                    // Create start point feature
+                    if (startCoord) {
+                        startPointFeatures.push({
+                            type: 'Feature',
+                            properties: {
+                                ...feature.properties,
+                                pointType: 'start'
+                            },
+                            geometry: {
+                                type: 'Point',
+                                coordinates: startCoord
+                            }
+                        });
+                    }
+                    
+                    // Create end point feature
+                    if (endCoord) {
+                        endPointFeatures.push({
+                            type: 'Feature',
+                            properties: {
+                                ...feature.properties,
+                                pointType: 'end'
+                            },
+                            geometry: {
+                                type: 'Point',
+                                coordinates: endCoord
+                            }
+                        });
+                    }
+                    
                 } else if (geometry.type === 'Point') {
                     pointFeatures.push(feature);
                     bounds.extend(geometry.coordinates);
@@ -1032,6 +1082,162 @@
                             18, 3
                         ],
                         'line-opacity': 0.9
+                    }
+                });
+
+                // Add start points as separate source and layers
+                map.addSource('start-points', {
+                    'type': 'geojson',
+                    'data': {
+                        'type': 'FeatureCollection',
+                        'features': startPointFeatures
+                    }
+                });
+
+                // Add shadow/glow effect for start points
+                map.addLayer({
+                    'id': 'line-start-points-shadow',
+                    'type': 'circle',
+                    'source': 'start-points',
+                    'paint': {
+                        'circle-radius': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            10, 0,  // Invisible at low zoom
+                            15, 4,  // Shadow larger than main circle
+                            18, 6   // Bigger shadow at high zoom
+                        ],
+                        'circle-color': '#1e40af', // Darker blue for shadow
+                        'circle-opacity': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            10, 0,  // Invisible at low zoom
+                            15, 0.3, // Subtle shadow
+                            18, 0.4  // Slightly more visible at high zoom
+                        ],
+                        'circle-blur': 1
+                    }
+                });
+
+                // Add line start points (enhanced circles at beginning of lines)
+                map.addLayer({
+                    'id': 'line-start-points',
+                    'type': 'circle',
+                    'source': 'start-points',
+                    'paint': {
+                        'circle-radius': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            10, 0,  // Invisible at low zoom
+                            15, 3,  // Bigger for better visibility
+                            18, 4   // Even bigger at high zoom
+                        ],
+                        'circle-color': '#3b82f6', // Bright blue color
+                        'circle-stroke-color': '#ffffff',
+                        'circle-stroke-width': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            15, 1,   // Thicker stroke at medium zoom
+                            18, 1.5  // Even thicker at high zoom
+                        ],
+                        'circle-opacity': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            10, 0,  // Invisible at low zoom
+                            15, 1,  // Fully visible at medium zoom
+                            18, 1   // Fully visible at high zoom
+                        ],
+                        'circle-stroke-opacity': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            10, 0,  // Invisible at low zoom
+                            15, 0.9, // Visible stroke
+                            18, 1   // Fully visible stroke
+                        ]
+                    }
+                });
+
+                // Add end points as separate source and red circles
+                map.addSource('end-points', {
+                    'type': 'geojson',
+                    'data': {
+                        'type': 'FeatureCollection',
+                        'features': endPointFeatures
+                    }
+                });
+
+                // Add shadow/glow effect for end points
+                map.addLayer({
+                    'id': 'line-end-points-shadow',
+                    'type': 'circle',
+                    'source': 'end-points',
+                    'paint': {
+                        'circle-radius': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            10, 0,  // Invisible at low zoom
+                            15, 4,  // Shadow larger than main circle
+                            18, 6   // Bigger shadow at high zoom
+                        ],
+                        'circle-color': '#7f1d1d', // Darker red for shadow
+                        'circle-opacity': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            10, 0,  // Invisible at low zoom
+                            15, 0.3, // Subtle shadow
+                            18, 0.4  // Slightly more visible at high zoom
+                        ],
+                        'circle-blur': 1
+                    }
+                });
+
+                // Add line end points (red circles at end of lines)
+                map.addLayer({
+                    'id': 'line-end-points',
+                    'type': 'circle',
+                    'source': 'end-points',
+                    'paint': {
+                        'circle-radius': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            10, 0,  // Invisible at low zoom
+                            15, 3,  // Bigger for better visibility
+                            18, 4   // Even bigger at high zoom
+                        ],
+                        'circle-color': '#ef4444', // Bright red color
+                        'circle-stroke-color': '#ffffff',
+                        'circle-stroke-width': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            15, 1,   // Thicker stroke at medium zoom
+                            18, 1.5  // Even thicker at high zoom
+                        ],
+                        'circle-opacity': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            10, 0,  // Invisible at low zoom
+                            15, 1,  // Fully visible at medium zoom
+                            18, 1   // Fully visible at high zoom
+                        ],
+                        'circle-stroke-opacity': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            10, 0,  // Invisible at low zoom
+                            15, 0.9, // Visible stroke
+                            18, 1   // Fully visible stroke
+                        ]
                     }
                 });
 
@@ -1304,8 +1510,26 @@
             if (map.getLayer('routes-outline')) {
                 map.removeLayer('routes-outline');
             }
+            if (map.getLayer('line-start-points')) {
+                map.removeLayer('line-start-points');
+            }
+            if (map.getLayer('line-start-points-shadow')) {
+                map.removeLayer('line-start-points-shadow');
+            }
+            if (map.getLayer('line-end-points')) {
+                map.removeLayer('line-end-points');
+            }
+            if (map.getLayer('line-end-points-shadow')) {
+                map.removeLayer('line-end-points-shadow');
+            }
             if (map.getSource('routes')) {
                 map.removeSource('routes');
+            }
+            if (map.getSource('start-points')) {
+                map.removeSource('start-points');
+            }
+            if (map.getSource('end-points')) {
+                map.removeSource('end-points');
             }
             
             // Clear filters
@@ -1334,11 +1558,28 @@
             const mappers = new Set();
             const zones = new Set();
             
+            // Create a mapping of mappers to their zones
+            window.mapperZoneMap = {};
+            
             features.forEach(feature => {
                 const props = feature.properties;
-                if (props['Mapper Name']) mappers.add(props['Mapper Name']);
-                if (props['MOBILEPAY_ZONE']) zones.add(props['MOBILEPAY_ZONE']);
+                const mapper = props['Mapper Name'];
+                const zone = props['MOBILEPAY_ZONE'];
+                
+                if (mapper) {
+                    mappers.add(mapper);
+                    if (!window.mapperZoneMap[mapper]) {
+                        window.mapperZoneMap[mapper] = new Set();
+                    }
+                    if (zone) {
+                        window.mapperZoneMap[mapper].add(zone);
+                    }
+                }
+                if (zone) zones.add(zone);
             });
+            
+            // Store all zones for reference
+            window.allZones = Array.from(zones).sort((a, b) => a - b);
             
             // Populate mapper dropdown
             const mapperSelect = document.getElementById('filterMapper');
@@ -1350,15 +1591,41 @@
                 mapperSelect.appendChild(option);
             });
             
-            // Populate zone dropdown
+            // Populate zone dropdown with all zones initially
+            populateZoneDropdown();
+        }
+        
+        // Populate zone dropdown based on selected mapper
+        function populateZoneDropdown(selectedMapper = null) {
             const zoneSelect = document.getElementById('filterZone');
+            const currentZoneValue = zoneSelect.value; // Remember current selection
             zoneSelect.innerHTML = '<option value="">All Zones</option>';
-            Array.from(zones).sort((a, b) => a - b).forEach(zone => {
+            
+            let zonesToShow;
+            if (selectedMapper && window.mapperZoneMap && window.mapperZoneMap[selectedMapper]) {
+                // Show only zones for the selected mapper
+                zonesToShow = Array.from(window.mapperZoneMap[selectedMapper]).sort((a, b) => a - b);
+            } else {
+                // Show all zones
+                zonesToShow = window.allZones || [];
+            }
+            
+            zonesToShow.forEach(zone => {
                 const option = document.createElement('option');
                 option.value = zone;
                 option.textContent = zone;
                 zoneSelect.appendChild(option);
             });
+            
+            // Try to restore the previous zone selection if it's still available
+            if (currentZoneValue && zonesToShow.includes(currentZoneValue)) {
+                zoneSelect.value = currentZoneValue;
+            } else if (currentZoneValue && selectedMapper) {
+                // If the previously selected zone is not available for this mapper, clear the zone filter
+                zoneSelect.value = '';
+                // Update the current filters
+                currentFilters.zone = '';
+            }
         }
 
         // Filter features based on current filters
@@ -1388,8 +1655,18 @@
 
         // Apply filters to map
         function applyFilters() {
-            currentFilters.mapper = document.getElementById('filterMapper').value;
+            const selectedMapper = document.getElementById('filterMapper').value;
+            const previousMapper = currentFilters.mapper;
+            
+            currentFilters.mapper = selectedMapper;
             currentFilters.zone = document.getElementById('filterZone').value;
+            
+            // If mapper selection changed, update zone dropdown
+            if (selectedMapper !== previousMapper) {
+                populateZoneDropdown(selectedMapper);
+                // Update zone filter value after dropdown is populated
+                currentFilters.zone = document.getElementById('filterZone').value;
+            }
             
             updateMapWithFilters();
         }
@@ -1440,8 +1717,26 @@
             if (map.getLayer('routes-outline')) {
                 map.removeLayer('routes-outline');
             }
+            if (map.getLayer('line-start-points')) {
+                map.removeLayer('line-start-points');
+            }
+            if (map.getLayer('line-start-points-shadow')) {
+                map.removeLayer('line-start-points-shadow');
+            }
+            if (map.getLayer('line-end-points')) {
+                map.removeLayer('line-end-points');
+            }
+            if (map.getLayer('line-end-points-shadow')) {
+                map.removeLayer('line-end-points-shadow');
+            }
             if (map.getSource('routes')) {
                 map.removeSource('routes');
+            }
+            if (map.getSource('start-points')) {
+                map.removeSource('start-points');
+            }
+            if (map.getSource('end-points')) {
+                map.removeSource('end-points');
             }
         }
 
@@ -1450,6 +1745,9 @@
             document.getElementById('filterMapper').value = '';
             document.getElementById('filterZone').value = '';
             document.getElementById('searchObjectId').value = '';
+            
+            // Reset zone dropdown to show all zones
+            populateZoneDropdown();
             
             currentFilters = {
                 mapper: '',
