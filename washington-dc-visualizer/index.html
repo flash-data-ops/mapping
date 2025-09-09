@@ -286,34 +286,165 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Custom popup styling */
+        /* Enhanced popup styling */
         .mapboxgl-popup-content {
-            border-radius: 12px !important;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
-            border: 1px solid rgba(0, 0, 0, 0.05) !important;
+            border-radius: 16px !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 10px 20px -5px rgba(0, 0, 0, 0.1) !important;
+            border: 1px solid rgba(0, 0, 0, 0.08) !important;
             padding: 0 !important;
             overflow: hidden !important;
+            backdrop-filter: blur(10px) !important;
+            background: rgba(255, 255, 255, 0.95) !important;
         }
 
         .mapboxgl-popup-tip {
-            border-top-color: white !important;
+            border-top-color: rgba(255, 255, 255, 0.95) !important;
+            filter: drop-shadow(0 -2px 4px rgba(0, 0, 0, 0.1)) !important;
         }
 
         .mapboxgl-popup-close-button {
-            background: rgba(0, 0, 0, 0.05) !important;
+            background: rgba(255, 255, 255, 0.9) !important;
             border-radius: 50% !important;
-            width: 24px !important;
-            height: 24px !important;
+            width: 28px !important;
+            height: 28px !important;
             font-size: 16px !important;
             color: #64748b !important;
-            right: 8px !important;
-            top: 8px !important;
+            right: 12px !important;
+            top: 12px !important;
             padding: 0 !important;
+            border: 1px solid rgba(0, 0, 0, 0.1) !important;
+            transition: all 0.2s ease !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
         }
 
         .mapboxgl-popup-close-button:hover {
-            background: rgba(0, 0, 0, 0.1) !important;
-            color: #1e293b !important;
+            background: rgba(239, 68, 68, 0.1) !important;
+            color: #ef4444 !important;
+            border-color: rgba(239, 68, 68, 0.2) !important;
+            transform: scale(1.05) !important;
+        }
+
+        /* Custom popup content styling */
+        .popup-content {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            line-height: 1.5;
+        }
+
+        .popup-header {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            padding: 8px 10px;
+            border-bottom: 1px solid #e2e8f0;
+            position: relative;
+        }
+
+        .popup-title {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 0;
+            font-size: 13px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .popup-icon {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .popup-body {
+            padding: 10px;
+        }
+
+        .popup-info-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+
+        .popup-info-item {
+            background: #f8fafc;
+            padding: 6px 8px;
+            border-radius: 4px;
+            border-left: 2px solid #3b82f6;
+        }
+
+        .popup-info-label {
+            color: #64748b;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            font-weight: 600;
+            margin-bottom: 1px;
+        }
+
+        .popup-info-value {
+            color: #1e293b;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .popup-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+            gap: 4px;
+        }
+
+        .popup-stat-card {
+            background: white;
+            padding: 6px 4px;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .popup-stat-card:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .popup-stat-label {
+            color: #64748b;
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            font-weight: 600;
+            margin-bottom: 1px;
+        }
+
+        .popup-stat-value {
+            color: #1e293b;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .popup-distance-card {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            padding: 6px 4px;
+            border-radius: 4px;
+            text-align: center;
+            box-shadow: 0 1px 4px rgba(59, 130, 246, 0.2);
+        }
+
+        .popup-distance-label {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            font-weight: 600;
+            opacity: 0.9;
+            margin-bottom: 1px;
+        }
+
+        .popup-distance-value {
+            font-size: 11px;
+            font-weight: 700;
         }
 
         /* Enhanced select styling */
@@ -381,7 +512,33 @@
             }
 
             .mapboxgl-popup-content {
-                max-width: 280px !important;
+                max-width: 220px !important;
+            }
+            
+            .popup-header {
+                padding: 6px 8px;
+            }
+            
+            .popup-body {
+                padding: 8px;
+            }
+            
+            .popup-title {
+                font-size: 12px;
+            }
+            
+            .popup-stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 3px;
+            }
+            
+            .popup-info-grid {
+                gap: 3px;
+                margin-bottom: 6px;
+            }
+            
+            .popup-info-item {
+                padding: 4px 6px;
             }
         }
 
@@ -400,6 +557,45 @@
             
             .map-container {
                 height: 400px;
+            }
+            
+            .mapboxgl-popup-content {
+                max-width: 200px !important;
+            }
+            
+            .popup-header {
+                padding: 5px 6px;
+            }
+            
+            .popup-body {
+                padding: 6px;
+            }
+            
+            .popup-title {
+                font-size: 11px;
+            }
+            
+            .popup-stats-grid {
+                grid-template-columns: 1fr;
+                gap: 2px;
+            }
+            
+            .popup-stat-card {
+                padding: 4px 3px;
+            }
+            
+            .popup-info-grid {
+                gap: 2px;
+                margin-bottom: 6px;
+            }
+            
+            .popup-info-item {
+                padding: 4px 5px;
+            }
+            
+            .popup-icon {
+                width: 8px;
+                height: 8px;
             }
         }
     </style>
@@ -849,35 +1045,51 @@
                     const routeColor = isMultiSegment ? '#16a34a' : '#2563eb';
                     
                     const content = `
-                        <div style="max-width: 320px; font-family: 'Segoe UI', system-ui, sans-serif;">
-                            <div style="display: flex; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid ${routeColor};">
-                                <div style="width: 12px; height: 12px; background: ${routeColor}; border-radius: 2px; margin-right: 8px; box-shadow: 0 0 4px rgba(0,0,0,0.2);"></div>
-                                <h3 style="margin: 0; color: ${routeColor}; font-size: 16px;">${props['Mapper Name'] || 'Mapper'}</h3>
+                        <div class="popup-content">
+                            <div class="popup-header">
+                                <h3 class="popup-title">
+                                    <div class="popup-icon" style="background: ${routeColor};"></div>
+                                    ${props['Mapper Name'] || 'Mapper'}
+                                </h3>
                             </div>
-                            <div style="background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 8px;">
-                                ${props['OBJECTID'] ? `<div style="margin-bottom: 6px;"><span style="color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Object ID</span><br><strong style="color: #1e293b;">${props['OBJECTID']}</strong></div>` : ''}
-                                ${props['MOBILEPAY_ZONE'] ? `<div style="margin-bottom: 6px;"><span style="color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Mobile Pay Zone</span><br><strong style="color: #1e293b;">${props['MOBILEPAY_ZONE']}</strong></div>` : ''}
-                                ${props['Street View Spaces'] ? `<div style="margin-bottom: 6px;"><span style="color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Street View Spaces</span><br><strong style="color: #1e293b;">${props['Street View Spaces']}</strong></div>` : ''}
-                            </div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px;">
-                                <div style="background: white; padding: 8px; border-radius: 6px; border: 1px solid #e2e8f0;">
-                                    <div style="color: #64748b; font-size: 11px; margin-bottom: 2px;">TYPE</div>
-                                    <div style="font-weight: 600; color: #1e293b;">${geometryType === 'MultiLineString' ? 'Multi-segment' : 'Simple'}</div>
+                            <div class="popup-body">
+                                <div class="popup-info-grid">
+                                    ${props['OBJECTID'] ? `
+                                    <div class="popup-info-item">
+                                        <div class="popup-info-label">Object ID</div>
+                                        <div class="popup-info-value">${props['OBJECTID']}</div>
+                                    </div>` : ''}
+                                    ${props['MOBILEPAY_ZONE'] ? `
+                                    <div class="popup-info-item">
+                                        <div class="popup-info-label">Mobile Pay Zone</div>
+                                        <div class="popup-info-value">${props['MOBILEPAY_ZONE']}</div>
+                                    </div>` : ''}
+                                    ${props['Street View Spaces'] ? `
+                                    <div class="popup-info-item">
+                                        <div class="popup-info-label">Street View Spaces</div>
+                                        <div class="popup-info-value">${props['Street View Spaces']}</div>
+                                    </div>` : ''}
                                 </div>
-                                <div style="background: white; padding: 8px; border-radius: 6px; border: 1px solid #e2e8f0;">
-                                    <div style="color: #64748b; font-size: 11px; margin-bottom: 2px;">POINTS</div>
-                                    <div style="font-weight: 600; color: #1e293b;">${props.coordinateCount || 'N/A'}</div>
+                                <div class="popup-stats-grid">
+                                    <div class="popup-stat-card">
+                                        <div class="popup-stat-label">Type</div>
+                                        <div class="popup-stat-value">${geometryType === 'MultiLineString' ? 'Multi-segment' : 'Simple'}</div>
+                                    </div>
+                                    <div class="popup-stat-card">
+                                        <div class="popup-stat-label">Points</div>
+                                        <div class="popup-stat-value">${props.coordinateCount || 'N/A'}</div>
+                                    </div>
+                                    ${props.segmentCount ? `
+                                    <div class="popup-stat-card">
+                                        <div class="popup-stat-label">Segments</div>
+                                        <div class="popup-stat-value">${props.segmentCount}</div>
+                                    </div>` : ''}
+                                    ${props.formattedDistance ? `
+                                    <div class="popup-distance-card">
+                                        <div class="popup-distance-label">Distance</div>
+                                        <div class="popup-distance-value">${props.formattedDistance}</div>
+                                    </div>` : ''}
                                 </div>
-                                ${props.segmentCount ? `
-                                <div style="background: white; padding: 8px; border-radius: 6px; border: 1px solid #e2e8f0;">
-                                    <div style="color: #64748b; font-size: 11px; margin-bottom: 2px;">SEGMENTS</div>
-                                    <div style="font-weight: 600; color: #1e293b;">${props.segmentCount}</div>
-                                </div>` : ''}
-                                ${props.formattedDistance ? `
-                                <div style="background: linear-gradient(135deg, ${routeColor}15, ${routeColor}05); padding: 8px; border-radius: 6px; border: 1px solid ${routeColor}30;">
-                                    <div style="color: ${routeColor}; font-size: 11px; margin-bottom: 2px;">DISTANCE</div>
-                                    <div style="font-weight: 700; color: ${routeColor}; font-size: 14px;">${props.formattedDistance}</div>
-                                </div>` : ''}
                             </div>
                         </div>
                     `;
@@ -885,7 +1097,7 @@
                     new mapboxgl.Popup({
                         closeButton: true,
                         closeOnClick: false,
-                        maxWidth: '340px',
+                        maxWidth: '260px',
                         className: 'custom-popup'
                     })
                         .setLngLat(e.lngLat)
@@ -913,22 +1125,40 @@
                 .setPopup(new mapboxgl.Popup({
                     closeButton: true,
                     closeOnClick: false,
-                    maxWidth: '300px',
+                    maxWidth: '220px',
                     className: 'custom-popup'
                 }).setHTML(`
-                    <div style="max-width: 280px; font-family: 'Segoe UI', system-ui, sans-serif;">
-                        <div style="display: flex; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #dc2626;">
-                            <div style="width: 12px; height: 12px; background: #dc2626; border-radius: 50%; margin-right: 8px; box-shadow: 0 0 4px rgba(220, 38, 38, 0.3);"></div>
-                            <h3 style="margin: 0; color: #dc2626; font-size: 16px;">${feature.properties['Mapper Name'] || 'Mapper'}</h3>
+                    <div class="popup-content">
+                        <div class="popup-header">
+                            <h3 class="popup-title">
+                                <div class="popup-icon" style="background: #dc2626; border-radius: 50%;"></div>
+                                ${feature.properties['Mapper Name'] || 'Mapper'}
+                            </h3>
                         </div>
-                        <div style="background: #fef2f2; padding: 12px; border-radius: 8px; margin-bottom: 8px;">
-                            ${feature.properties['OBJECTID'] ? `<div style="margin-bottom: 6px;"><span style="color: #991b1b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Object ID</span><br><strong style="color: #7f1d1d;">${feature.properties['OBJECTID']}</strong></div>` : ''}
-                            ${feature.properties['MOBILEPAY_ZONE'] ? `<div style="margin-bottom: 6px;"><span style="color: #991b1b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Mobile Pay Zone</span><br><strong style="color: #7f1d1d;">${feature.properties['MOBILEPAY_ZONE']}</strong></div>` : ''}
-                            ${feature.properties['Street View Spaces'] ? `<div style="margin-bottom: 6px;"><span style="color: #991b1b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Street View Spaces</span><br><strong style="color: #7f1d1d;">${feature.properties['Street View Spaces']}</strong></div>` : ''}
-                        </div>
-                        <div style="background: linear-gradient(135deg, #dc262615, #dc262605); padding: 8px; border-radius: 6px; border: 1px solid #dc262630; text-align: center;">
-                            <div style="color: #dc2626; font-size: 11px; margin-bottom: 2px;">TYPE</div>
-                            <div style="font-weight: 700; color: #dc2626; font-size: 14px;">📍 Point Location</div>
+                        <div class="popup-body">
+                            <div class="popup-info-grid">
+                                ${feature.properties['OBJECTID'] ? `
+                                <div class="popup-info-item" style="border-left-color: #dc2626;">
+                                    <div class="popup-info-label">Object ID</div>
+                                    <div class="popup-info-value">${feature.properties['OBJECTID']}</div>
+                                </div>` : ''}
+                                ${feature.properties['MOBILEPAY_ZONE'] ? `
+                                <div class="popup-info-item" style="border-left-color: #dc2626;">
+                                    <div class="popup-info-label">Mobile Pay Zone</div>
+                                    <div class="popup-info-value">${feature.properties['MOBILEPAY_ZONE']}</div>
+                                </div>` : ''}
+                                ${feature.properties['Street View Spaces'] ? `
+                                <div class="popup-info-item" style="border-left-color: #dc2626;">
+                                    <div class="popup-info-label">Street View Spaces</div>
+                                    <div class="popup-info-value">${feature.properties['Street View Spaces']}</div>
+                                </div>` : ''}
+                            </div>
+                            <div class="popup-stats-grid">
+                                <div class="popup-distance-card" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);">
+                                    <div class="popup-distance-label">Type</div>
+                                    <div class="popup-distance-value">📍 Point Location</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 `))
