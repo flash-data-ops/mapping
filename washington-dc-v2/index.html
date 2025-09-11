@@ -1029,6 +1029,7 @@
             <h3><span>✏️</span> Drawing Tools</h3>
             <div style="background: rgba(33, 150, 243, 0.1); padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 11px; color: #333;">
                 <strong>✨ Enhanced Line Tool:</strong> All elements are draggable with real-time measurements! 
+                <br><strong>🎯 Bendable Lines:</strong> Double-click any line to add control points (orange dots) that let you bend the line into curves. Right-click control points to remove them.
                 <br><strong>Auto-MultiLine:</strong> Draw individual lines normally - after 2+ lines, they automatically combine into a MultiLineString in the GeoJSON output with total measurements.
             </div>
             <div class="drawing-controls">
@@ -1257,6 +1258,18 @@
                             <span class="shortcut-description">Auto-MultiLine Creation</span>
                             <div class="shortcut-keys">
                                 <span class="key">Draw 2+ Lines</span>
+                            </div>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">Bend Lines (Add Control Point)</span>
+                            <div class="shortcut-keys">
+                                <span class="key">Double-Click Line</span>
+                            </div>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">Remove Control Point</span>
+                            <div class="shortcut-keys">
+                                <span class="key">Right-Click Control Point</span>
                             </div>
                         </div>
                     </div>
@@ -2288,6 +2301,7 @@
 
                 const geojson = {
                     coordinates: currentLineCoords.map(coord => [coord.lng(), coord.lat()]),
+                    originalEndpoints: currentLineCoords.map(coord => [coord.lng(), coord.lat()]),
                     type: "LineString"
                 };
 
@@ -2334,6 +2348,11 @@
                 // Add editable indicators to both endpoints
                 createEditableIndicator(currentLine.markers[0], "DRAG");
                 createEditableIndicator(currentLine.markers[1], "DRAG");
+                
+                // Add double-click listener to polyline for adding control points
+                polyline.addListener('dblclick', (event) => {
+                    addControlPoint(feature, event.latLng);
+                });
 
                 // Check if we should create or update a MultiLineString
                 if (drawnLines.length >= 2) {
@@ -2370,27 +2389,190 @@
         function updateLineGeometry(feature) {
             const path = feature.markers.map(marker => marker.getPosition());
             
-            // Update polyline path
-            feature.polyline.setPath(path);
+            // Generate curved path if control points exist
+            let curvePath = path;
+            if (feature.controlPoints && feature.controlPoints.length > 0) {
+                curvePath = generateCurvedPath(feature);
+            }
             
-            // Update GeoJSON coordinates
-            feature.geojson.coordinates = path.map(pos => [pos.lng(), pos.lat()]);
+            // Update polyline path
+            feature.polyline.setPath(curvePath);
+            
+            // Update GeoJSON coordinates to include all curve points
+            feature.geojson.coordinates = curvePath.map(pos => [pos.lng(), pos.lat()]);
+            
+            // Store original endpoints and control points separately for editing
+            feature.geojson.originalEndpoints = path.map(pos => [pos.lng(), pos.lat()]);
+            if (feature.controlPoints) {
+                feature.geojson.controlPoints = feature.controlPoints.map(cp => [cp.lng(), cp.lat()]);
+            }
             
             // Calculate new distance
             const distance = google.maps.geometry.spherical.computeDistanceBetween(path[0], path[1]);
             
+            // Position label at midpoint of the curved path
+            let labelPosition;
+            if (feature.controlPoints && feature.controlPoints.length > 0) {
+                // For curved lines, position label at the curve's midpoint
+                labelPosition = getCurveMiddlePoint(feature);
+            } else {
+                // For straight lines, use simple midpoint
+                labelPosition = google.maps.geometry.spherical.interpolate(path[0], path[1], 0.5);
+            }
+            
             // Update measurement label position and text based on drawing type
-            const midpoint = google.maps.geometry.spherical.interpolate(path[0], path[1], 0.5);
             let labelText;
             if (feature.drawingType === 'parallel' || feature.drawingType === 'perpendicular') {
                 labelText = formatCarCount(distance, feature.drawingType);
             } else {
                 labelText = formatDistance(distance);
             }
-            updateMeasurementLabel(feature.measurementLabel, midpoint, labelText);
+            updateMeasurementLabel(feature.measurementLabel, labelPosition, labelText);
             
             // Update MultiLineString if this line is part of one
             updateMultiLineStringGeometry();
+        }
+
+        // Function to generate curved path from endpoints and control points
+        function generateCurvedPath(feature) {
+            const start = feature.markers[0].getPosition();
+            const end = feature.markers[1].getPosition();
+            const controlPoints = feature.controlPoints || [];
+            
+            if (controlPoints.length === 0) {
+                return [start, end];
+            }
+            
+            // Create a smooth curve using quadratic or cubic Bezier
+            const segments = 50; // Number of segments for smooth curve
+            const curvePath = [];
+            
+            if (controlPoints.length === 1) {
+                // Quadratic Bezier curve
+                const control = controlPoints[0];
+                for (let i = 0; i <= segments; i++) {
+                    const t = i / segments;
+                    const point = quadraticBezier(start, control, end, t);
+                    curvePath.push(point);
+                }
+            } else if (controlPoints.length >= 2) {
+                // Cubic Bezier curve using first two control points
+                const control1 = controlPoints[0];
+                const control2 = controlPoints[1];
+                for (let i = 0; i <= segments; i++) {
+                    const t = i / segments;
+                    const point = cubicBezier(start, control1, control2, end, t);
+                    curvePath.push(point);
+                }
+            }
+            
+            return curvePath;
+        }
+
+        // Quadratic Bezier curve calculation
+        function quadraticBezier(start, control, end, t) {
+            const lat = (1 - t) * (1 - t) * start.lat() + 2 * (1 - t) * t * control.lat() + t * t * end.lat();
+            const lng = (1 - t) * (1 - t) * start.lng() + 2 * (1 - t) * t * control.lng() + t * t * end.lng();
+            return new google.maps.LatLng(lat, lng);
+        }
+
+        // Cubic Bezier curve calculation
+        function cubicBezier(start, control1, control2, end, t) {
+            const lat = Math.pow(1 - t, 3) * start.lat() + 
+                       3 * Math.pow(1 - t, 2) * t * control1.lat() + 
+                       3 * (1 - t) * Math.pow(t, 2) * control2.lat() + 
+                       Math.pow(t, 3) * end.lat();
+            const lng = Math.pow(1 - t, 3) * start.lng() + 
+                       3 * Math.pow(1 - t, 2) * t * control1.lng() + 
+                       3 * (1 - t) * Math.pow(t, 2) * control2.lng() + 
+                       Math.pow(t, 3) * end.lng();
+            return new google.maps.LatLng(lat, lng);
+        }
+
+        // Get the middle point of a curved line for label positioning
+        function getCurveMiddlePoint(feature) {
+            const curvePath = generateCurvedPath(feature);
+            const middleIndex = Math.floor(curvePath.length / 2);
+            return curvePath[middleIndex];
+        }
+
+        // Function to add a control point to a line to make it bendable
+        function addControlPoint(feature, position) {
+            if (!feature.controlPoints) {
+                feature.controlPoints = [];
+            }
+            
+            // Limit to 2 control points for now (cubic Bezier)
+            if (feature.controlPoints.length >= 2) {
+                showToast('Maximum 2 control points allowed per line');
+                return;
+            }
+            
+            // Create a draggable marker for the control point
+            const controlMarker = new google.maps.Marker({
+                position: position,
+                map: mainMap,
+                draggable: true,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 6,
+                    fillColor: "#FF9800",
+                    fillOpacity: 1,
+                    strokeColor: "#ffffff",
+                    strokeWeight: 2
+                },
+                title: "Control Point - Drag to bend line",
+                zIndex: 1000
+            });
+            
+            feature.controlPoints.push(position);
+            if (!feature.controlMarkers) {
+                feature.controlMarkers = [];
+            }
+            feature.controlMarkers.push(controlMarker);
+            
+            // Add drag listener to update curve
+            controlMarker.addListener('drag', () => {
+                const index = feature.controlMarkers.indexOf(controlMarker);
+                feature.controlPoints[index] = controlMarker.getPosition();
+                updateLineGeometry(feature);
+            });
+            
+            controlMarker.addListener('dragend', () => {
+                const index = feature.controlMarkers.indexOf(controlMarker);
+                feature.controlPoints[index] = controlMarker.getPosition();
+                updateLineGeometry(feature);
+                updateGeoJSONDisplay();
+                showToast('Curve updated! All curve points saved in GeoJSON.');
+            });
+            
+            // Right-click to remove control point
+            controlMarker.addListener('rightclick', () => {
+                removeControlPoint(feature, controlMarker);
+            });
+            
+            // Update the line to show the curve and regenerate coordinates
+            updateLineGeometry(feature);
+            updateGeoJSONDisplay();
+            showToast('Control point added! Curve coordinates updated in GeoJSON.');
+        }
+
+        // Function to remove a control point
+        function removeControlPoint(feature, controlMarker) {
+            const index = feature.controlMarkers.indexOf(controlMarker);
+            if (index > -1) {
+                feature.controlMarkers.splice(index, 1);
+                feature.controlPoints.splice(index, 1);
+                controlMarker.setMap(null);
+                updateLineGeometry(feature);
+                updateGeoJSONDisplay();
+                
+                if (feature.controlPoints.length === 0) {
+                    showToast('Control point removed! Line is now straight with original coordinates.');
+                } else {
+                    showToast('Control point removed! Curve coordinates updated in GeoJSON.');
+                }
+            }
         }
 
         // Function to create or update MultiLineString from all drawn lines
@@ -2700,6 +2882,10 @@
                 if (feature.totalLabel) {
                     feature.totalLabel.setMap(null);
                 }
+                // Remove control points
+                if (feature.controlMarkers) {
+                    feature.controlMarkers.forEach(marker => marker.setMap(null));
+                }
             });
 
             // Clear current drawing state
@@ -2723,6 +2909,15 @@
             showToast('All drawings cleared!');
         }
 
+        // Helper function to create clean GeoJSON without internal editing properties
+        function getCleanGeoJSON(feature) {
+            const cleanGeoJSON = {
+                coordinates: feature.geojson.coordinates,
+                type: feature.geojson.type
+            };
+            return cleanGeoJSON;
+        }
+
         function updateGeoJSONDisplay() {
             const listContainer = document.getElementById('geojson-list');
             listContainer.innerHTML = '';
@@ -2730,6 +2925,7 @@
             drawnFeatures.forEach((feature, index) => {
                 const featureDiv = document.createElement('div');
                 featureDiv.className = 'info-item';
+                const cleanGeoJSON = getCleanGeoJSON(feature);
                 featureDiv.innerHTML = `
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <strong>${feature.type.charAt(0).toUpperCase() + feature.type.slice(1)} ${index + 1}</strong>
@@ -2738,14 +2934,15 @@
                             <button class="copy-button" onclick="deleteFeature(${index})" style="background: #f44336;">Delete</button>
                         </div>
                     </div>
-                    <div class="geojson-output">${JSON.stringify(feature.geojson, null, 2)}</div>
+                    <div class="geojson-output">${JSON.stringify(cleanGeoJSON, null, 2)}</div>
                 `;
                 listContainer.appendChild(featureDiv);
             });
         }
 
         function copyGeoJSON(index) {
-            const geojson = JSON.stringify(drawnFeatures[index].geojson);
+            const cleanGeoJSON = getCleanGeoJSON(drawnFeatures[index]);
+            const geojson = JSON.stringify(cleanGeoJSON);
             navigator.clipboard.writeText(geojson).then(() => {
                 showToast('GeoJSON copied to clipboard!');
             }).catch(err => {
@@ -2767,7 +2964,7 @@
                         id: index + 1,
                         featureType: feature.type
                     },
-                    geometry: feature.geojson
+                    geometry: getCleanGeoJSON(feature)
                 }))
             };
 
