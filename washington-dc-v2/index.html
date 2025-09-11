@@ -1126,6 +1126,14 @@
                                 <span class="key">K</span>
                             </div>
                         </div>
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">Toggle Map Type (includes Terrain)</span>
+                            <div class="shortcut-keys">
+                                <span class="key modifier">Ctrl</span>
+                                <span class="key-separator">+</span>
+                                <span class="key">R</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -1353,6 +1361,12 @@
                 ],
                 mapTypeControl: true,
                 mapTypeControlOptions: {
+                    mapTypeIds: [
+                        google.maps.MapTypeId.ROADMAP,
+                        google.maps.MapTypeId.SATELLITE,
+                        google.maps.MapTypeId.HYBRID,
+                        google.maps.MapTypeId.TERRAIN
+                    ],
                     position: google.maps.ControlPosition.TOP_RIGHT,
                     style: google.maps.MapTypeControlStyle.DROPDOWN_MENU
                 },
@@ -3814,6 +3828,31 @@
             }, 3000);
         }
 
+        // Function to toggle between map types (roadmap, satellite, hybrid, terrain)
+        function toggleMapType() {
+            const mapTypes = [
+                google.maps.MapTypeId.ROADMAP,
+                google.maps.MapTypeId.SATELLITE,
+                google.maps.MapTypeId.HYBRID,
+                google.maps.MapTypeId.TERRAIN
+            ];
+            
+            const mapTypeNames = {
+                [google.maps.MapTypeId.ROADMAP]: 'Roadmap',
+                [google.maps.MapTypeId.SATELLITE]: 'Satellite',
+                [google.maps.MapTypeId.HYBRID]: 'Hybrid',
+                [google.maps.MapTypeId.TERRAIN]: 'Terrain'
+            };
+            
+            const currentMapType = mainMap.getMapTypeId();
+            const currentIndex = mapTypes.indexOf(currentMapType);
+            const nextIndex = (currentIndex + 1) % mapTypes.length;
+            const nextMapType = mapTypes[nextIndex];
+            
+            mainMap.setMapTypeId(nextMapType);
+            showToast(`Switched to ${mapTypeNames[nextMapType]} view`);
+        }
+
         // Updated keyboard shortcuts to include filter shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.ctrlKey || e.metaKey) {
@@ -3865,6 +3904,10 @@
                     case 's':
                         e.preventDefault();
                         toggleSidebar();
+                        break;
+                    case 'r':
+                        e.preventDefault();
+                        toggleMapType();
                         break;
                     case 'Enter':
                         // Ctrl+Enter applies filter if filter input is focused
