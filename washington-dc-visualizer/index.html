@@ -992,31 +992,15 @@
                     lineFeatures.push(feature);
                     
                     // Create start and end point features
-                    let startCoord, endCoord;
-                    
                     if (geometry.type === 'LineString') {
-                        startCoord = geometry.coordinates[0];
-                        endCoord = geometry.coordinates[geometry.coordinates.length - 1];
+                        const startCoord = geometry.coordinates[0];
+                        const endCoord = geometry.coordinates[geometry.coordinates.length - 1];
                         
                         geometry.coordinates.forEach(coord => {
                             bounds.extend(coord);
                         });
-                    } else if (geometry.type === 'MultiLineString') {
-                        // For MultiLineString, use the first point of first line and last point of last line
-                        const firstLine = geometry.coordinates[0];
-                        const lastLine = geometry.coordinates[geometry.coordinates.length - 1];
-                        startCoord = firstLine[0];
-                        endCoord = lastLine[lastLine.length - 1];
                         
-                        geometry.coordinates.forEach(lineString => {
-                            lineString.forEach(coord => {
-                                bounds.extend(coord);
-                            });
-                        });
-                    }
-                    
-                    // Create start point feature
-                    if (startCoord) {
+                        // Create start point feature
                         startPointFeatures.push({
                             type: 'Feature',
                             properties: {
@@ -1028,10 +1012,8 @@
                                 coordinates: startCoord
                             }
                         });
-                    }
-                    
-                    // Create end point feature
-                    if (endCoord) {
+                        
+                        // Create end point feature
                         endPointFeatures.push({
                             type: 'Feature',
                             properties: {
@@ -1042,6 +1024,47 @@
                                 type: 'Point',
                                 coordinates: endCoord
                             }
+                        });
+                        
+                    } else if (geometry.type === 'MultiLineString') {
+                        // For MultiLineString, create start and end points for each segment
+                        geometry.coordinates.forEach((lineString, segmentIndex) => {
+                            lineString.forEach(coord => {
+                                bounds.extend(coord);
+                            });
+                            
+                            const segmentStart = lineString[0];
+                            const segmentEnd = lineString[lineString.length - 1];
+                            
+                            // Create start point for this segment
+                            startPointFeatures.push({
+                                type: 'Feature',
+                                properties: {
+                                    ...feature.properties,
+                                    pointType: 'segment-start',
+                                    segmentIndex: segmentIndex + 1,
+                                    totalSegments: geometry.coordinates.length
+                                },
+                                geometry: {
+                                    type: 'Point',
+                                    coordinates: segmentStart
+                                }
+                            });
+                            
+                            // Create end point for this segment
+                            endPointFeatures.push({
+                                type: 'Feature',
+                                properties: {
+                                    ...feature.properties,
+                                    pointType: 'segment-end',
+                                    segmentIndex: segmentIndex + 1,
+                                    totalSegments: geometry.coordinates.length
+                                },
+                                geometry: {
+                                    type: 'Point',
+                                    coordinates: segmentEnd
+                                }
+                            });
                         });
                     }
                     
@@ -1131,10 +1154,10 @@
                             ['linear'],
                             ['zoom'],
                             10, 0,  // Invisible at low zoom
-                            15, 4,  // Shadow larger than main circle
-                            18, 6   // Bigger shadow at high zoom
+                            15, 4,  // Same shadow size for all start points
+                            18, 6   // Same shadow size for all start points
                         ],
-                        'circle-color': '#1e40af', // Darker blue for shadow
+                        'circle-color': '#1e40af', // Darker blue for all start point shadows
                         'circle-opacity': [
                             'interpolate',
                             ['linear'],
@@ -1158,17 +1181,17 @@
                             ['linear'],
                             ['zoom'],
                             10, 0,  // Invisible at low zoom
-                            15, 3,  // Bigger for better visibility
-                            18, 4   // Even bigger at high zoom
+                            15, 3,  // Same size for all start points
+                            18, 4   // Same size for all start points
                         ],
-                        'circle-color': '#3b82f6', // Bright blue color
+                        'circle-color': '#3b82f6', // Blue for all start points
                         'circle-stroke-color': '#ffffff',
                         'circle-stroke-width': [
                             'interpolate',
                             ['linear'],
                             ['zoom'],
-                            15, 1,   // Thicker stroke at medium zoom
-                            18, 1.5  // Even thicker at high zoom
+                            15, 1,   // Same stroke width for all start points
+                            18, 1.5  // Same stroke width for all start points
                         ],
                         'circle-opacity': [
                             'interpolate',
@@ -1209,10 +1232,10 @@
                             ['linear'],
                             ['zoom'],
                             10, 0,  // Invisible at low zoom
-                            15, 4,  // Shadow larger than main circle
-                            18, 6   // Bigger shadow at high zoom
+                            15, 4,  // Same shadow size for all end points
+                            18, 6   // Same shadow size for all end points
                         ],
-                        'circle-color': '#7f1d1d', // Darker red for shadow
+                        'circle-color': '#7f1d1d', // Darker red for all end point shadows
                         'circle-opacity': [
                             'interpolate',
                             ['linear'],
@@ -1236,17 +1259,17 @@
                             ['linear'],
                             ['zoom'],
                             10, 0,  // Invisible at low zoom
-                            15, 3,  // Bigger for better visibility
-                            18, 4   // Even bigger at high zoom
+                            15, 3,  // Same size for all end points
+                            18, 4   // Same size for all end points
                         ],
-                        'circle-color': '#ef4444', // Bright red color
+                        'circle-color': '#ef4444', // Red for all end points
                         'circle-stroke-color': '#ffffff',
                         'circle-stroke-width': [
                             'interpolate',
                             ['linear'],
                             ['zoom'],
-                            15, 1,   // Thicker stroke at medium zoom
-                            18, 1.5  // Even thicker at high zoom
+                            15, 1,   // Same stroke width for all end points
+                            18, 1.5  // Same stroke width for all end points
                         ],
                         'circle-opacity': [
                             'interpolate',
