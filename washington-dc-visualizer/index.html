@@ -704,6 +704,8 @@
         let map;
         let loadedFeatures = [];
         let allFeatures = []; // Store all loaded features for filtering
+        let currentPopup = null; // Global popup reference
+        let routeClickedFlag = false; // Flag to prevent global map click when route is clicked
         let currentFilters = {
             mapper: '',
             zone: '',
@@ -748,12 +750,6 @@
 
             map.on('load', () => {
                 showStatus('Map initialized successfully', 'success');
-                
-                // Add red arrow icon for line end indicators
-                map.loadImage('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8IS0tIFNoYWRvdyBlZmZlY3QgLS0+CiAgPHBhdGggZD0iTTMuNSAxMC41TDE2LjUgMTAuNU0xNi41IDEwLjVMMTIuNSA2LjVNMTYuNSAxMC41TDEyLjUgMTQuNSIgc3Ryb2tlPSIjN2YxZDFkIiBzdHJva2Utd2lkdGg9IjMuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBvcGFjaXR5PSIwLjQiLz4KICA8IS0tIE1haW4gYXJyb3cgLS0+CiAgPHBhdGggZD0iTTMgMTBMMTYgMTBNMTYgMTBMMTIgNk0xNiAxMEwxMiAxNCIgc3Ryb2tlPSIjZWY0NDQ0IiBzdHJva2Utd2lkdGg9IjMuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPgo=', (error, image) => {
-                    if (error) throw error;
-                    map.addImage('arrow-icon', image);
-                });
                 
                 // Auto-load data after map is loaded
                 setTimeout(() => {
@@ -864,22 +860,49 @@
                 console.log('Extracted properties:', properties);
                 
                 // Extract coordinates from column E onwards (index 4+)
-                // Assuming pairs of coordinates: [lng1, lat1, lng2, lat2, lng3, lat3, ...]
-                const coordinates = [];
+                // New format: Each cell contains full line coordinates separated by semicolons
+                // E.g., "-76.99259980728371,38.89909205267844; -76.99259578533682,38.89953130766435"
+                const lineStrings = [];
                 
-                for (let i = 4; i < row.length; i += 2) {
-                    const lng = parseFloat(row[i]);
-                    const lat = parseFloat(row[i + 1]);
+                // Check cells starting from column E (index 4) until we find an empty cell
+                for (let cellIndex = 4; cellIndex < row.length; cellIndex++) {
+                    const cellValue = row[cellIndex];
                     
-                    if (!isNaN(lng) && !isNaN(lat)) {
-                        coordinates.push([lng, lat]);
-                        console.log(`Added coordinate pair: [${lng}, ${lat}]`);
+                    // Skip empty cells - if we find an empty cell, we've reached the end
+                    if (!cellValue || cellValue.trim() === '') {
+                        break;
+                    }
+                    
+                    console.log(`Processing cell ${cellIndex} (column ${String.fromCharCode(69 + cellIndex - 4)}): "${cellValue}"`);
+                    
+                    // Parse coordinate pairs from this cell (separated by semicolons)
+                    const coordinatePairs = cellValue.split(';').map(pair => pair.trim()).filter(pair => pair.length > 0);
+                    const lineCoordinates = [];
+                    
+                    coordinatePairs.forEach(pair => {
+                        const coords = pair.split(',').map(c => parseFloat(c.trim()));
+                        if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+                            lineCoordinates.push([coords[0], coords[1]]); // [lng, lat]
+                            console.log(`  Added coordinate pair: [${coords[0]}, ${coords[1]}]`);
+                        } else {
+                            console.log(`  Skipping invalid coordinate pair: "${pair}"`);
+                        }
+                    });
+                    
+                    if (lineCoordinates.length >= 2) {
+                        lineStrings.push(lineCoordinates);
+                        console.log(`  Created line with ${lineCoordinates.length} coordinate pairs`);
+                    } else {
+                        console.log(`  Skipping line with insufficient coordinates (${lineCoordinates.length})`);
                     }
                 }
                 
-                if (coordinates.length >= 2) {
-                    if (coordinates.length === 2) {
-                        // For exactly 2 points, create a simple LineString
+                console.log(`Total lines extracted: ${lineStrings.length}`);
+                
+                if (lineStrings.length > 0) {
+                    if (lineStrings.length === 1) {
+                        // Single LineString - only one cell contained coordinates
+                        const coordinates = lineStrings[0];
                         const distance = calculateDistance(coordinates);
                         const formattedDistance = formatDistance(distance);
                         
@@ -902,31 +925,29 @@
                         features.push(feature);
                         console.log(`Created LineString for ${properties['Mapper Name'] || 'Unknown'} with ${coordinates.length} points, distance: ${formattedDistance}`);
                     } else {
-                        // For more than 2 points, create separate line segments for each consecutive pair
+                        // MultiLineString - multiple cells contained coordinates
                         let totalDistance = 0;
-                        const lineStrings = [];
+                        let totalCoordinateCount = 0;
                         
-                        for (let i = 0; i < coordinates.length - 1; i++) {
-                            const segmentCoords = [coordinates[i], coordinates[i + 1]];
-                            const segmentDistance = calculateDistance(segmentCoords);
-                            totalDistance += segmentDistance;
-                            
-                            lineStrings.push(segmentCoords);
-                        }
+                        // Calculate total distance across all line segments
+                        lineStrings.forEach(lineCoords => {
+                            totalDistance += calculateDistance(lineCoords);
+                            totalCoordinateCount += lineCoords.length;
+                        });
                         
                         const formattedDistance = formatDistance(totalDistance);
                         
-                        // Create a MultiLineString feature with separate line segments
+                        // Create a MultiLineString feature
                         const feature = {
                             type: 'Feature',
                             properties: {
                                 ...properties,
                                 rowIndex: rowIndex,
-                                coordinateCount: coordinates.length,
+                                coordinateCount: totalCoordinateCount,
                                 distance: totalDistance,
                                 formattedDistance: formattedDistance,
                                 segmentCount: lineStrings.length,
-                                description: `${properties['Mapper Name'] || 'Mapper'} - Zone ${properties['MOBILEPAY_ZONE'] || 'Unknown'} (${lineStrings.length} segments, ${formattedDistance})`
+                                description: `${properties['Mapper Name'] || 'Mapper'} - Zone ${properties['MOBILEPAY_ZONE'] || 'Unknown'} (${lineStrings.length} lines, ${formattedDistance})`
                             },
                             geometry: {
                                 type: 'MultiLineString',
@@ -935,27 +956,10 @@
                         };
                         
                         features.push(feature);
-                        console.log(`Created MultiLineString for ${properties['Mapper Name'] || 'Unknown'} with ${lineStrings.length} separate segments, total distance: ${formattedDistance}`);
+                        console.log(`Created MultiLineString for ${properties['Mapper Name'] || 'Unknown'} with ${lineStrings.length} separate lines, total distance: ${formattedDistance}`);
                     }
-                } else if (coordinates.length === 1) {
-                    // Create a Point feature if only one coordinate pair
-                    const feature = {
-                        type: 'Feature',
-                        properties: {
-                            ...properties,
-                            rowIndex: rowIndex,
-                            description: `${properties['Mapper Name'] || 'Mapper'} - Zone ${properties['MOBILEPAY_ZONE'] || 'Unknown'} (Point)`
-                        },
-                        geometry: {
-                            type: 'Point',
-                            coordinates: coordinates[0]
-                        }
-                    };
-                    
-                    features.push(feature);
-                    console.log(`Created Point for ${properties['Mapper Name'] || 'Unknown'}`);
                 } else {
-                    console.log(`Row ${rowIndex} (${properties['Mapper Name'] || 'Unknown'}): Not enough valid coordinates (found ${coordinates.length})`);
+                    console.log(`Row ${rowIndex} (${properties['Mapper Name'] || 'Unknown'}): No valid coordinate lines found`);
                 }
             });
             
@@ -1050,6 +1054,9 @@
 
             // Add line features as a source and layer
             if (lineFeatures.length > 0) {
+                console.log('🚀 Adding routes source with', lineFeatures.length, 'features');
+                console.log('🚀 Sample feature:', lineFeatures[0]);
+                
                 map.addSource('routes', {
                     'type': 'geojson',
                     'data': {
@@ -1057,6 +1064,8 @@
                         'features': lineFeatures
                     }
                 });
+                
+                console.log('🚀 Routes source added successfully');
 
                 // Add route outline (shadow effect)
                 map.addLayer({
@@ -1097,6 +1106,10 @@
                         'line-opacity': 0.9
                     }
                 });
+                
+                console.log('🚀 Routes layer added successfully');
+                console.log('🚀 Layer exists:', map.getLayer('routes'));
+                console.log('🚀 Source exists:', map.getSource('routes'));
 
                 // Add start points as separate source and layers
                 map.addSource('start-points', {
@@ -1256,8 +1269,30 @@
 
                 // Gap visualization removed for multi-line strings
 
+                // Remove existing event listeners to avoid duplicates
+                map.off('click', 'routes');
+                map.off('mouseenter', 'routes');
+                map.off('mouseleave', 'routes');
+                map.off('click'); // Remove global map click handler
+
                 // Add click handler for lines with enhanced popup styling
+                console.log('🎯 Adding click handler for routes layer');
                 map.on('click', 'routes', (e) => {
+                    console.log('🔥 ROUTE CLICKED!', e.features[0]);
+                    console.log('🔥 Event details:', e);
+                    
+                    // Set flag to prevent global map click handler
+                    routeClickedFlag = true;
+                    
+                    // Prevent event from bubbling to map click handler
+                    e.originalEvent.stopPropagation();
+                    
+                    // Close any existing popup
+                    if (currentPopup) {
+                        currentPopup.remove();
+                        currentPopup = null;
+                    }
+                    
                     const props = e.features[0].properties;
                     const geometryType = e.features[0].geometry.type;
                     const isMultiSegment = props.segmentCount > 1;
@@ -1313,7 +1348,8 @@
                         </div>
                     `;
                     
-                    const popup = new mapboxgl.Popup({
+                    console.log('🔥 Creating popup...');
+                    currentPopup = new mapboxgl.Popup({
                         closeButton: true,
                         closeOnClick: false,
                         closeOnMove: false,
@@ -1324,16 +1360,43 @@
                         .setHTML(content)
                         .addTo(map);
                     
+                    console.log('🔥 Popup created and should be visible:', currentPopup);
+                    
                     // Ensure close button is properly clickable
                     setTimeout(() => {
-                        const closeButton = popup.getElement().querySelector('.mapboxgl-popup-close-button');
-                        if (closeButton) {
-                            closeButton.addEventListener('click', (event) => {
-                                event.stopPropagation();
-                                popup.remove();
-                            });
+                        if (currentPopup && currentPopup.getElement()) {
+                            const closeButton = currentPopup.getElement().querySelector('.mapboxgl-popup-close-button');
+                            if (closeButton) {
+                                closeButton.addEventListener('click', (event) => {
+                                    event.stopPropagation();
+                                    if (currentPopup) {
+                                        currentPopup.remove();
+                                        currentPopup = null;
+                                    }
+                                });
+                            }
                         }
-                    }, 10);
+                    }, 100); // Increased timeout to ensure popup is fully rendered
+                });
+                
+                // Add click handler for map to close popup when clicking anywhere else
+                console.log('🎯 Adding global map click handler');
+                map.on('click', (e) => {
+                    console.log('🗺️ MAP CLICKED (global handler), routeClickedFlag:', routeClickedFlag);
+                    
+                    // If a route was clicked, don't close the popup
+                    if (routeClickedFlag) {
+                        console.log('🗺️ Ignoring global click because route was clicked');
+                        routeClickedFlag = false; // Reset the flag
+                        return;
+                    }
+                    
+                    // Close popup if clicking anywhere on the map (not on a line)
+                    if (currentPopup) {
+                        console.log('🗺️ Closing popup from global handler');
+                        currentPopup.remove();
+                        currentPopup = null;
+                    }
                 });
 
                 // Change cursor on hover
@@ -1348,12 +1411,7 @@
 
             // Add point features as enhanced markers
             pointFeatures.forEach((feature, index) => {
-                const marker = new mapboxgl.Marker({
-                    color: '#dc2626',
-                    scale: 1.2
-                })
-                .setLngLat(feature.geometry.coordinates)
-                .setPopup(new mapboxgl.Popup({
+                const markerPopup = new mapboxgl.Popup({
                     closeButton: true,
                     closeOnClick: false,
                     closeOnMove: false,
@@ -1393,8 +1451,49 @@
                             </div>
                         </div>
                     </div>
-                `))
+                `);
+
+                const marker = new mapboxgl.Marker({
+                    color: '#dc2626',
+                    scale: 1.2
+                })
+                .setLngLat(feature.geometry.coordinates)
+                .setPopup(markerPopup)
                 .addTo(map);
+                
+                // Override the marker's popup behavior to work with our global currentPopup
+                marker.getElement().addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    
+                    // Set flag to prevent global map click handler
+                    routeClickedFlag = true;
+                    
+                    // Close any existing popup
+                    if (currentPopup) {
+                        currentPopup.remove();
+                        currentPopup = null;
+                    }
+                    
+                    // Set this popup as the current one and open it
+                    currentPopup = markerPopup;
+                    markerPopup.addTo(map);
+                    
+                    // Handle close button for marker popup
+                    setTimeout(() => {
+                        if (markerPopup && markerPopup.getElement()) {
+                            const closeButton = markerPopup.getElement().querySelector('.mapboxgl-popup-close-button');
+                            if (closeButton) {
+                                closeButton.addEventListener('click', (event) => {
+                                    event.stopPropagation();
+                                    if (markerPopup) {
+                                        markerPopup.remove();
+                                        currentPopup = null;
+                                    }
+                                });
+                            }
+                        }
+                    }, 100); // Increased timeout to ensure popup is fully rendered
+                });
                 
                 loadedFeatures.push(marker);
             });
