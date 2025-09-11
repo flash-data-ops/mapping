@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GeoJSON Mapbox Visualizer</title>
+    <title>Map Visualizer</title>
     <link href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css' rel='stylesheet' />
     <style>
         * {
@@ -27,52 +27,22 @@
         }
 
         .sidebar {
-            width: 400px;
-            min-width: 400px;
+            width: 320px;
+            min-width: 320px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            transition: transform 0.3s ease;
             z-index: 1000;
             overflow-y: auto;
             box-shadow: 2px 0 10px rgba(0,0,0,0.1);
         }
 
-        .sidebar.hidden {
-            transform: translateX(-100%);
-        }
-
         .sidebar-content {
             padding: 20px;
             height: 100%;
-        }
-
-        .sidebar-toggle {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            z-index: 1001;
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 12px 16px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .sidebar-toggle:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
-        }
-
-        .sidebar-toggle.sidebar-open {
-            left: 420px;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow-x: hidden;
         }
 
         .map-wrapper {
@@ -101,10 +71,13 @@
         .controls {
             background: white;
             border-radius: 16px;
-            padding: 20px;
+            padding: 16px;
             margin-bottom: 16px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.06), 0 4px 8px rgba(0,0,0,0.03);
             border: 1px solid rgba(0,0,0,0.05);
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
         }
 
         .controls-header {
@@ -130,9 +103,10 @@
 
         .controls-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            grid-template-columns: 1fr;
             gap: 16px;
             margin-bottom: 16px;
+            width: 100%;
         }
 
         .control-section {
@@ -141,6 +115,9 @@
             padding: 16px;
             border: 1px solid #e2e8f0;
             transition: all 0.3s ease;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
         }
 
         .control-section:hover {
@@ -179,6 +156,7 @@
         .input-group input,
         .input-group select {
             width: 100%;
+            max-width: 100%;
             padding: 10px 12px;
             border: 2px solid #e2e8f0;
             border-radius: 8px;
@@ -186,6 +164,7 @@
             transition: all 0.3s ease;
             background: white;
             color: #1e293b;
+            box-sizing: border-box;
         }
 
         .input-group input:focus,
@@ -547,28 +526,8 @@
 
         @media (max-width: 768px) {
             .sidebar {
-                width: 100vw;
-                min-width: 100vw;
-                position: fixed;
-                top: 0;
-                left: 0;
-                z-index: 1000;
-            }
-            
-            .sidebar.hidden {
-                transform: translateX(-100%);
-            }
-            
-            .sidebar-toggle {
-                left: 20px;
-            }
-            
-            .sidebar-toggle.sidebar-open {
-                left: 20px;
-            }
-            
-            .map-wrapper {
-                width: 100vw;
+                width: 280px;
+                min-width: 280px;
             }
             
             .header h1 {
@@ -691,18 +650,11 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Sidebar Toggle Button -->
-        <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">
-            <span id="toggleIcon">☰</span>
-            <span id="toggleText">Hide Controls</span>
-        </button>
-
         <!-- Sidebar -->
         <div class="sidebar" id="sidebar">
             <div class="sidebar-content">
                 <div class="header">
-                    <h1>🗺️ GeoJSON Mapbox Visualizer</h1>
-                    <p>Visualize GeoJSON data from Control Table - On-Street Data Mapping - Washington DC on interactive Mapbox maps</p>
+ 
                 </div>
 
                 <div class="controls">
@@ -2015,33 +1967,6 @@
                     }, 100);
                 }
             });
-        }
-
-        // Toggle sidebar visibility
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const toggleBtn = document.getElementById('sidebarToggle');
-            const toggleIcon = document.getElementById('toggleIcon');
-            const toggleText = document.getElementById('toggleText');
-            
-            sidebar.classList.toggle('hidden');
-            
-            if (sidebar.classList.contains('hidden')) {
-                toggleBtn.classList.remove('sidebar-open');
-                toggleIcon.textContent = '☰';
-                toggleText.textContent = 'Show Controls';
-            } else {
-                toggleBtn.classList.add('sidebar-open');
-                toggleIcon.textContent = '×';
-                toggleText.textContent = 'Hide Controls';
-            }
-            
-            // Trigger map resize after sidebar animation completes
-            setTimeout(() => {
-                if (map) {
-                    map.resize();
-                }
-            }, 300);
         }
 
         // Initialize map when DOM is loaded
