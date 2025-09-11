@@ -1546,6 +1546,37 @@
             areaLabels.clear();
         }
 
+        // Helper function to create enhanced label text with both distance and car measurements
+        function createEnhancedLabelText(distance, drawingType, lineNumber = null) {
+            const distanceText = formatDistance(distance);
+            
+            // Calculate both parallel and perpendicular car counts
+            const parallelCars = formatCarCount(distance, 'parallel');
+            const perpendicularCars = formatCarCount(distance, 'perpendicular');
+            
+            let labelText = '';
+            
+            // Add line number if provided
+            if (lineNumber !== null) {
+                labelText = `Line ${lineNumber}: `;
+            }
+            
+            // Always show distance first
+            labelText += distanceText;
+            
+            // Add car measurements in parentheses
+            if (drawingType === 'parallel') {
+                labelText += ` (${parallelCars})`;
+            } else if (drawingType === 'perpendicular') {
+                labelText += ` (${perpendicularCars})`;
+            } else {
+                // For regular lines, show both car measurements
+                labelText += ` (${parallelCars.replace('cars', 'parallel')} / ${perpendicularCars.replace('cars', 'perpendicular')})`;
+            }
+            
+            return labelText;
+        }
+
         // Helper function to create measurement labels
         function createMeasurementLabel(position, text, labelType = 'default') {
             const labelOverlay = new google.maps.OverlayView();
@@ -2315,13 +2346,8 @@
                     currentLineCoords[0], currentLineCoords[1], 0.5
                 );
                 
-                // Format the measurement based on drawing type
-                let labelText;
-                if (drawingType === 'parallel' || drawingType === 'perpendicular') {
-                    labelText = formatCarCount(distance, drawingType);
-                } else {
-                    labelText = formatDistance(distance);
-                }
+                // Create enhanced label text with both distance and car measurements
+                const labelText = createEnhancedLabelText(distance, drawingType);
                 
                 const measurementLabel = createMeasurementLabel(midpoint, labelText, 'default');
 
@@ -2420,13 +2446,8 @@
                 labelPosition = google.maps.geometry.spherical.interpolate(path[0], path[1], 0.5);
             }
             
-            // Update measurement label position and text based on drawing type
-            let labelText;
-            if (feature.drawingType === 'parallel' || feature.drawingType === 'perpendicular') {
-                labelText = formatCarCount(distance, feature.drawingType);
-            } else {
-                labelText = formatDistance(distance);
-            }
+            // Create enhanced label text with both distance and car measurements
+            const labelText = createEnhancedLabelText(distance, feature.drawingType);
             updateMeasurementLabel(feature.measurementLabel, labelPosition, labelText);
             
             // Update MultiLineString if this line is part of one
@@ -2624,13 +2645,8 @@
                     0.5
                 );
                 
-                // Format the label based on drawing type
-                let segmentText;
-                if (line.drawingType === 'parallel' || line.drawingType === 'perpendicular') {
-                    segmentText = `Line ${index + 1}: ${formatCarCount(lineLength, line.drawingType)}`;
-                } else {
-                    segmentText = `Line ${index + 1}: ${formatDistance(lineLength)}`;
-                }
+                // Create enhanced segment label with line number
+                const segmentText = createEnhancedLabelText(lineLength, line.drawingType, index + 1);
                 
                 updateMeasurementLabel(
                     line.measurementLabel, 
@@ -2643,13 +2659,13 @@
             // Create total length label at the end of the last line with offset
             const lastLine = drawnLines[drawnLines.length - 1];
             
-            // Determine total label format - if all lines are same car type, show total cars
+            // Create enhanced total label
             const allSameType = drawnLines.every(line => line.drawingType === drawnLines[0].drawingType);
             let totalText;
             if (allSameType && (drawnLines[0].drawingType === 'parallel' || drawnLines[0].drawingType === 'perpendicular')) {
-                totalText = `Total: ${formatCarCount(totalLength, drawnLines[0].drawingType)}`;
+                totalText = `Total: ${createEnhancedLabelText(totalLength, drawnLines[0].drawingType).replace(/^Line \d+: /, '')}`;
             } else {
-                totalText = `Total: ${formatDistance(totalLength)}`;
+                totalText = `Total: ${createEnhancedLabelText(totalLength, 'line').replace(/^Line \d+: /, '')}`;
             }
             
             // Calculate position above the last line's individual label
@@ -2732,13 +2748,13 @@
             // Update total label with offset position
             const lastLine = drawnLines[drawnLines.length - 1];
             
-            // Determine total label format - if all lines are same car type, show total cars
+            // Create enhanced total label
             const allSameType = drawnLines.every(line => line.drawingType === drawnLines[0].drawingType);
             let totalText;
             if (allSameType && (drawnLines[0].drawingType === 'parallel' || drawnLines[0].drawingType === 'perpendicular')) {
-                totalText = `Total: ${formatCarCount(totalLength, drawnLines[0].drawingType)}`;
+                totalText = `Total: ${createEnhancedLabelText(totalLength, drawnLines[0].drawingType).replace(/^Line \d+: /, '')}`;
             } else {
-                totalText = `Total: ${formatDistance(totalLength)}`;
+                totalText = `Total: ${createEnhancedLabelText(totalLength, 'line').replace(/^Line \d+: /, '')}`;
             }
             
             // Calculate position above the last line's individual label
@@ -2812,17 +2828,12 @@
                     0.5
                 );
                 
-                // Format the label based on drawing type
-                let segmentText;
-                if (line.drawingType === 'parallel' || line.drawingType === 'perpendicular') {
-                    segmentText = `Line ${index + 1}: ${formatCarCount(lineLength, line.drawingType)}`;
-                } else {
-                    segmentText = `Line ${index + 1}: ${formatDistance(lineLength)}`;
-                }
+                // Create enhanced segment label with line number
+                const segmentText = createEnhancedLabelText(lineLength, line.drawingType, index + 1);
                 
                 updateMeasurementLabel(
-                    line.measurementLabel, 
-                    midpoint, 
+                    line.measurementLabel,
+                    midpoint,
                     segmentText
                 );
             });
@@ -2830,13 +2841,13 @@
             // Update total label with offset position
             const lastLine = drawnLines[drawnLines.length - 1];
             
-            // Determine total label format - if all lines are same car type, show total cars
+            // Create enhanced total label
             const allSameType = drawnLines.every(line => line.drawingType === drawnLines[0].drawingType);
             let totalText;
             if (allSameType && (drawnLines[0].drawingType === 'parallel' || drawnLines[0].drawingType === 'perpendicular')) {
-                totalText = `Total: ${formatCarCount(totalLength, drawnLines[0].drawingType)}`;
+                totalText = `Total: ${createEnhancedLabelText(totalLength, drawnLines[0].drawingType).replace(/^Line \d+: /, '')}`;
             } else {
-                totalText = `Total: ${formatDistance(totalLength)}`;
+                totalText = `Total: ${createEnhancedLabelText(totalLength, 'line').replace(/^Line \d+: /, '')}`;
             }
             
             // Calculate position above the last line's individual label
