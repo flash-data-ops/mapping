@@ -1860,10 +1860,200 @@
             updateMapWithFilters();
         }
 
-        // Search for Object ID
+        // Search for Object ID with zoom and popup
         function searchObjectId() {
-            currentFilters.searchObjectId = document.getElementById('searchObjectId').value.trim();
-            updateMapWithFilters();
+            const searchValue = document.getElementById('searchObjectId').value.trim();
+            currentFilters.searchObjectId = searchValue;
+            
+            if (!searchValue) {
+                updateMapWithFilters();
+                return;
+            }
+            
+            // Find the specific object by ID
+            const foundFeature = allFeatures.find(feature => {
+                return feature.properties['OBJECTID'] && 
+                       feature.properties['OBJECTID'].toString().includes(searchValue);
+            });
+            
+            if (foundFeature) {
+                // Update map with all features (don't hide others)
+                clearMapFeatures();
+                addFeaturesToMap(allFeatures);
+                
+                // Zoom to the found feature
+                zoomToFeature(foundFeature);
+                
+                // Show info window for the found feature after a small delay
+                setTimeout(() => {
+                    showFeaturePopup(foundFeature);
+                }, 500);
+                
+                showStatus(`Found Object ID: ${foundFeature.properties['OBJECTID']}`, 'success');
+            } else {
+                // If no exact match, show filtered results
+                updateMapWithFilters();
+                if (getFilteredFeatures().length === 0) {
+                    showStatus(`No features found with Object ID containing: ${searchValue}`, 'error');
+                }
+            }
+        }
+
+        // Zoom to a specific feature
+        function zoomToFeature(feature) {
+            const geometry = feature.geometry;
+            let bounds = new mapboxgl.LngLatBounds();
+            
+            if (geometry.type === 'LineString') {
+                geometry.coordinates.forEach(coord => {
+                    bounds.extend(coord);
+                });
+            } else if (geometry.type === 'MultiLineString') {
+                geometry.coordinates.forEach(lineString => {
+                    lineString.forEach(coord => {
+                        bounds.extend(coord);
+                    });
+                });
+            } else if (geometry.type === 'Point') {
+                bounds.extend(geometry.coordinates);
+                // For points, add some padding to create a reasonable zoom level
+                const padding = 0.002; // roughly 200 meters
+                bounds.extend([
+                    geometry.coordinates[0] - padding,
+                    geometry.coordinates[1] - padding
+                ]);
+                bounds.extend([
+                    geometry.coordinates[0] + padding,
+                    geometry.coordinates[1] + padding
+                ]);
+            }
+            
+            if (!bounds.isEmpty()) {
+                map.fitBounds(bounds, {
+                    padding: { top: 100, bottom: 100, left: 100, right: 100 },
+                    maxZoom: 18,
+                    duration: 1000,
+                    essential: true
+                });
+            }
+        }
+        
+        // Show popup for a specific feature
+        function showFeaturePopup(feature) {
+            // Close any existing popup
+            if (currentPopup) {
+                currentPopup.remove();
+                currentPopup = null;
+            }
+            
+            const geometry = feature.geometry;
+            const props = feature.properties;
+            let popupLocation;
+            
+            // Determine popup location based on geometry type
+            if (geometry.type === 'Point') {
+                popupLocation = geometry.coordinates;
+            } else if (geometry.type === 'LineString') {
+                // Use the midpoint of the line
+                const midIndex = Math.floor(geometry.coordinates.length / 2);
+                popupLocation = geometry.coordinates[midIndex];
+            } else if (geometry.type === 'MultiLineString') {
+                // Use the midpoint of the first line segment
+                const firstLine = geometry.coordinates[0];
+                const midIndex = Math.floor(firstLine.length / 2);
+                popupLocation = firstLine[midIndex];
+            }
+            
+            if (!popupLocation) return;
+            
+            // Create popup content
+            const isMultiSegment = props.segmentCount > 1;
+            const routeColor = geometry.type === 'Point' ? '#dc2626' : (isMultiSegment ? '#16a34a' : '#2563eb');
+            const icon = geometry.type === 'Point' ? '📍' : (isMultiSegment ? '🛣️' : '📏');
+            
+            const content = `
+                <div class="popup-content">
+                    <div class="popup-header">
+                        <h3 class="popup-title">
+                            <div class="popup-icon" style="background: ${routeColor}; ${geometry.type === 'Point' ? 'border-radius: 50%;' : ''}"></div>
+                            ${props['Mapper Name'] || 'Mapper'}
+                        </h3>
+                    </div>
+                    <div class="popup-body">
+                        <div class="popup-info-grid">
+                            ${props['OBJECTID'] ? `
+                            <div class="popup-info-item" style="border-left-color: ${routeColor};">
+                                <div class="popup-info-label">Object ID</div>
+                                <div class="popup-info-value">${props['OBJECTID']}</div>
+                            </div>` : ''}
+                            ${props['MOBILEPAY_ZONE'] ? `
+                            <div class="popup-info-item" style="border-left-color: ${routeColor};">
+                                <div class="popup-info-label">Mobile Pay Zone</div>
+                                <div class="popup-info-value">${props['MOBILEPAY_ZONE']}</div>
+                            </div>` : ''}
+                            ${props['Street View Spaces'] ? `
+                            <div class="popup-info-item" style="border-left-color: ${routeColor};">
+                                <div class="popup-info-label">Street View Spaces</div>
+                                <div class="popup-info-value">${props['Street View Spaces']}</div>
+                            </div>` : ''}
+                        </div>
+                        <div class="popup-stats-grid">
+                            <div class="popup-stat-card">
+                                <div class="popup-stat-label">Type</div>
+                                <div class="popup-stat-value">${geometry.type === 'Point' ? 'Point' : (geometry.type === 'MultiLineString' ? 'Multi-segment' : 'Line')}</div>
+                            </div>
+                            ${geometry.type !== 'Point' ? `
+                            <div class="popup-stat-card">
+                                <div class="popup-stat-label">Points</div>
+                                <div class="popup-stat-value">${props.coordinateCount || 'N/A'}</div>
+                            </div>` : ''}
+                            ${props.segmentCount ? `
+                            <div class="popup-stat-card">
+                                <div class="popup-stat-label">Segments</div>
+                                <div class="popup-stat-value">${props.segmentCount}</div>
+                            </div>` : ''}
+                            ${props.formattedDistance ? `
+                            <div class="popup-distance-card" style="background: linear-gradient(135deg, ${routeColor} 0%, ${routeColor}cc 100%);">
+                                <div class="popup-distance-label">Distance</div>
+                                <div class="popup-distance-value">${props.formattedDistance}</div>
+                            </div>` : ''}
+                            ${geometry.type === 'Point' ? `
+                            <div class="popup-distance-card" style="background: linear-gradient(135deg, ${routeColor} 0%, ${routeColor}cc 100%);">
+                                <div class="popup-distance-label">Type</div>
+                                <div class="popup-distance-value">${icon} Point Location</div>
+                            </div>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Create and show popup
+            currentPopup = new mapboxgl.Popup({
+                closeButton: true,
+                closeOnClick: false,
+                closeOnMove: false,
+                maxWidth: '260px',
+                className: 'custom-popup'
+            })
+                .setLngLat(popupLocation)
+                .setHTML(content)
+                .addTo(map);
+                
+            // Ensure close button works properly
+            setTimeout(() => {
+                if (currentPopup && currentPopup.getElement()) {
+                    const closeButton = currentPopup.getElement().querySelector('.mapboxgl-popup-close-button');
+                    if (closeButton) {
+                        closeButton.addEventListener('click', (event) => {
+                            event.stopPropagation();
+                            if (currentPopup) {
+                                currentPopup.remove();
+                                currentPopup = null;
+                            }
+                        });
+                    }
+                }
+            }, 100);
         }
 
         // Handle Enter key press in search
