@@ -1030,6 +1030,7 @@
             <div style="background: rgba(33, 150, 243, 0.1); padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 11px; color: #333;">
                 <strong>✨ Enhanced Line Tool:</strong> All elements are draggable with real-time measurements! 
                 <br><strong>🎯 Bendable Lines:</strong> Double-click any line to add control points (orange dots) that let you bend the line into curves. Right-click control points to remove them.
+                <br><strong>🔄 Whole-Line Dragging:</strong> Drag anywhere on the line (not just endpoints) to move the entire line to a new position while maintaining its shape and curve.
                 <br><strong>Auto-MultiLine:</strong> Draw individual lines normally - after 2+ lines, they automatically combine into a MultiLineString in the GeoJSON output with total measurements.
             </div>
             <div class="drawing-controls">
@@ -1260,6 +1261,12 @@
                             <span class="shortcut-description">Drag Points/Endpoints</span>
                             <div class="shortcut-keys">
                                 <span class="key">Drag</span>
+                            </div>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">Drag Entire Line</span>
+                            <div class="shortcut-keys">
+                                <span class="key">Drag Line</span>
                             </div>
                         </div>
                         <div class="shortcut-item">
@@ -2394,6 +2401,9 @@
                     addControlPoint(feature, event.latLng);
                 });
 
+                // Add whole-line dragging functionality
+                setupLineDragHandler(feature);
+
                 // Check if we should create or update a MultiLineString
                 if (drawnLines.length >= 2) {
                     createOrUpdateMultiLineString();
@@ -2423,6 +2433,125 @@
                 updateGeoJSONDisplay();
                 showToast('Line length updated!');
             });
+        }
+
+        // Function to setup whole-line dragging
+        function setupLineDragHandler(feature) {
+            const polyline = feature.polyline;
+            let isDragging = false;
+            let dragStartPosition = null;
+            let originalEndpoints = [];
+            let originalControlPoints = [];
+
+            // Make polyline draggable
+            polyline.setOptions({ draggable: true });
+
+            polyline.addListener('dragstart', (event) => {
+                isDragging = true;
+                dragStartPosition = event.latLng;
+                
+                // Store original positions
+                originalEndpoints = feature.markers.map(marker => marker.getPosition());
+                if (feature.controlPoints) {
+                    originalControlPoints = [...feature.controlPoints];
+                }
+                
+                // Temporarily disable endpoint dragging during line drag
+                feature.markers.forEach(marker => {
+                    marker.setOptions({ draggable: false });
+                });
+                
+                if (feature.controlMarkers) {
+                    feature.controlMarkers.forEach(marker => {
+                        marker.setOptions({ draggable: false });
+                    });
+                }
+            });
+
+            polyline.addListener('drag', (event) => {
+                if (!isDragging || !dragStartPosition) return;
+
+                const currentPosition = event.latLng;
+                const deltaLat = currentPosition.lat() - dragStartPosition.lat();
+                const deltaLng = currentPosition.lng() - dragStartPosition.lng();
+
+                // Move all endpoints
+                feature.markers.forEach((marker, index) => {
+                    const originalPos = originalEndpoints[index];
+                    const newPos = new google.maps.LatLng(
+                        originalPos.lat() + deltaLat,
+                        originalPos.lng() + deltaLng
+                    );
+                    marker.setPosition(newPos);
+                });
+
+                // Move all control points
+                if (feature.controlPoints && feature.controlMarkers) {
+                    feature.controlPoints.forEach((_, index) => {
+                        const originalPos = originalControlPoints[index];
+                        const newPos = new google.maps.LatLng(
+                            originalPos.lat() + deltaLat,
+                            originalPos.lng() + deltaLng
+                        );
+                        feature.controlPoints[index] = newPos;
+                        feature.controlMarkers[index].setPosition(newPos);
+                    });
+                }
+
+                // Update the line geometry without triggering endpoint listeners
+                updateLineGeometryDuringDrag(feature);
+            });
+
+            polyline.addListener('dragend', (event) => {
+                if (!isDragging) return;
+                
+                isDragging = false;
+                dragStartPosition = null;
+                
+                // Re-enable endpoint dragging
+                feature.markers.forEach(marker => {
+                    marker.setOptions({ draggable: true });
+                });
+                
+                if (feature.controlMarkers) {
+                    feature.controlMarkers.forEach(marker => {
+                        marker.setOptions({ draggable: true });
+                    });
+                }
+                
+                // Final update
+                updateLineGeometry(feature);
+                updateGeoJSONDisplay();
+                showToast('Line moved to new position!');
+            });
+        }
+
+        // Helper function to update line geometry during drag without triggering other events
+        function updateLineGeometryDuringDrag(feature) {
+            const path = feature.markers.map(marker => marker.getPosition());
+            
+            // Generate curved path if control points exist
+            let curvePath = path;
+            if (feature.controlPoints && feature.controlPoints.length > 0) {
+                curvePath = generateCurvedPath(feature);
+            }
+            
+            // Update polyline path
+            feature.polyline.setPath(curvePath);
+            
+            // Update measurement label position
+            let labelPosition;
+            if (feature.controlPoints && feature.controlPoints.length > 0) {
+                labelPosition = getCurveMiddlePoint(feature);
+            } else {
+                labelPosition = google.maps.geometry.spherical.interpolate(path[0], path[1], 0.5);
+            }
+            
+            // Update label position only (distance remains the same during drag)
+            if (feature.measurementLabel && feature.measurementLabel.div) {
+                feature.measurementLabel.position = labelPosition;
+                feature.measurementLabel.draw();
+            }
         }
 
         // Function to update line geometry and measurement
@@ -2814,6 +2943,11 @@
                         showToast(`MultiLineString updated! Line ${lineIndex + 1} adjusted.`);
                     });
                 });
+
+                // Setup whole-line dragging for each line in the MultiLineString
+                if (line.polyline && !line.polyline.get('draggable')) {
+                    setupLineDragHandler(line);
+                }
             });
         }
 
