@@ -17,21 +17,58 @@
             background: #1a1a1a;
         }
 
-        #street-view {
-            height: 55vh;
-            width: 100%;
-            position: relative;
-            border-bottom: 3px solid #2196F3;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        /* Container for resizable map layout */
+        .map-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
             margin-left: 350px; /* Account for expanded sidebar */
             width: calc(100% - 350px);
+            transition: margin-left 0.3s ease, width 0.3s ease;
+        }
+
+        #street-view {
+            height: 55vh;
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            min-height: 20vh;
+            max-height: 80vh;
+        }
+
+        /* Resizable divider */
+        .resize-divider {
+            height: 6px;
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            cursor: row-resize;
+            position: relative;
+            transition: background 0.2s ease;
+            z-index: 100;
+        }
+
+        .resize-divider:hover {
+            background: linear-gradient(135deg, #1976D2 0%, #0D47A1 100%);
+        }
+
+        .resize-divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 2px;
+        }
+
+        .resize-divider.dragging {
+            background: linear-gradient(135deg, #FF6B6B 0%, #FF5252 100%);
         }
 
         #main-map {
-            height: 45vh;
-            width: calc(100% - 350px);
+            flex: 1;
             position: relative;
-            margin-left: 350px; /* Account for expanded sidebar */
+            min-height: 20vh;
         }
 
         /* Left Sidebar Styles */
@@ -84,8 +121,7 @@
         }
 
         /* When sidebar is collapsed, adjust map positioning */
-        .sidebar.collapsed ~ #street-view,
-        .sidebar.collapsed ~ #main-map {
+        .sidebar.collapsed ~ .map-container {
             margin-left: 0;
             width: 100%;
         }
@@ -894,8 +930,7 @@
                 left: -300px;
             }
 
-            .sidebar:not(.collapsed) ~ #street-view,
-            .sidebar:not(.collapsed) ~ #main-map {
+            .sidebar:not(.collapsed) ~ .map-container {
                 margin-left: 300px;
                 width: calc(100% - 300px);
             }
@@ -1303,12 +1338,24 @@
                                 <span class="key">Drag</span>
                             </div>
                         </div>
-                        <div class="shortcut-item">
-                            <span class="shortcut-description">Drag Entire Line</span>
-                            <div class="shortcut-keys">
-                                <span class="key">Drag Line</span>
-                            </div>
-                        </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-description">Drag Entire Line</span>
+                    <div class="shortcut-keys">
+                        <span class="key">Drag Line</span>
+                    </div>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-description">Resize Street View / Map</span>
+                    <div class="shortcut-keys">
+                        <span class="key">Drag Blue Divider</span>
+                    </div>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-description">Reset Layout</span>
+                    <div class="shortcut-keys">
+                        <span class="key">Double-Click Divider</span>
+                    </div>
+                </div>
                         <div class="shortcut-item">
                             <span class="shortcut-description">Auto-MultiLine Creation</span>
                             <div class="shortcut-keys">
@@ -1342,8 +1389,11 @@
         </div>
     </div>
 
-    <div id="street-view"></div>
-    <div id="main-map"></div>
+    <div class="map-container">
+        <div id="street-view"></div>
+        <div class="resize-divider" id="resize-divider"></div>
+        <div id="main-map"></div>
+    </div>
     
     <div class="loading-spinner" id="loading">
         <div class="spinner"></div>
@@ -1481,6 +1531,9 @@
             
             // Show location panel by default and initialize with default message
             document.getElementById('location-panel').classList.add('active');
+            
+            // Initialize resizable divider
+            initializeResizableDivider();
             
             showLoading(false);
             showToast('Map loaded successfully!');
@@ -2186,28 +2239,18 @@
         // Updated sidebar toggle function
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
-            const streetView = document.getElementById('street-view');
-            const mainMapDiv = document.getElementById('main-map');
+            const mapContainer = document.querySelector('.map-container');
             
             sidebar.classList.toggle('collapsed');
             
-            // Update layout when sidebar is toggled
-            if (sidebar.classList.contains('collapsed')) {
-                streetView.style.marginLeft = '0';
-                streetView.style.width = '100%';
-                mainMapDiv.style.marginLeft = '0';
-                mainMapDiv.style.width = '100%';
-            } else {
-                streetView.style.marginLeft = '350px';
-                streetView.style.width = 'calc(100% - 350px)';
-                mainMapDiv.style.marginLeft = '350px';
-                mainMapDiv.style.width = 'calc(100% - 350px)';
-            }
-            
+            // The CSS handles the layout changes automatically, but we need to trigger map resize
             // Trigger map resize to ensure proper rendering
             setTimeout(() => {
                 google.maps.event.trigger(mainMap, 'resize');
-            }, 300);
+                if (streetView) {
+                    google.maps.event.trigger(streetView, 'resize');
+                }
+            }, 350); // Slightly longer timeout to ensure CSS transition completes
         }
 
         // Shortcuts panel function
@@ -4403,6 +4446,110 @@
             
             mainMap.setMapTypeId(nextMapType);
             showToast(`Switched to ${mapTypeNames[nextMapType]} view`);
+        }
+
+        // Resizable divider functionality
+        let isResizing = false;
+        let startY = 0;
+        let startStreetViewHeight = 0;
+
+        function initializeResizableDivider() {
+            const divider = document.getElementById('resize-divider');
+            const streetView = document.getElementById('street-view');
+            const mapContainer = document.querySelector('.map-container');
+
+            divider.addEventListener('mousedown', startResize);
+
+            function startResize(e) {
+                isResizing = true;
+                startY = e.clientY;
+                startStreetViewHeight = streetView.offsetHeight;
+                
+                divider.classList.add('dragging');
+                document.body.style.cursor = 'row-resize';
+                document.body.style.userSelect = 'none';
+                
+                document.addEventListener('mousemove', handleResize);
+                document.addEventListener('mouseup', stopResize);
+                
+                e.preventDefault();
+            }
+
+            function handleResize(e) {
+                if (!isResizing) return;
+                
+                const deltaY = e.clientY - startY;
+                const containerHeight = mapContainer.offsetHeight;
+                const newStreetViewHeight = startStreetViewHeight + deltaY;
+                
+                // Calculate min and max heights (20% to 80% of container)
+                const minHeight = containerHeight * 0.2;
+                const maxHeight = containerHeight * 0.8;
+                
+                // Constrain the height
+                const constrainedHeight = Math.max(minHeight, Math.min(maxHeight, newStreetViewHeight));
+                
+                // Convert to vh units for responsiveness
+                const viewportHeight = window.innerHeight;
+                const streetViewVh = (constrainedHeight / viewportHeight) * 100;
+                
+                streetView.style.height = `${streetViewVh}vh`;
+                
+                // Trigger resize events for Google Maps
+                if (streetView && mainMap) {
+                    setTimeout(() => {
+                        google.maps.event.trigger(streetView, 'resize');
+                        google.maps.event.trigger(mainMap, 'resize');
+                    }, 10);
+                }
+            }
+
+            function stopResize() {
+                if (!isResizing) return;
+                
+                isResizing = false;
+                divider.classList.remove('dragging');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                
+                document.removeEventListener('mousemove', handleResize);
+                document.removeEventListener('mouseup', stopResize);
+                
+                // Final resize trigger
+                setTimeout(() => {
+                    if (streetView && mainMap) {
+                        google.maps.event.trigger(streetView, 'resize');
+                        google.maps.event.trigger(mainMap, 'resize');
+                    }
+                }, 100);
+                
+                showToast('Layout resized!');
+            }
+
+            // Double-click to reset to default 55/45 split
+            divider.addEventListener('dblclick', () => {
+                streetView.style.height = '55vh';
+                setTimeout(() => {
+                    if (streetView && mainMap) {
+                        google.maps.event.trigger(streetView, 'resize');
+                        google.maps.event.trigger(mainMap, 'resize');
+                    }
+                }, 100);
+                showToast('Layout reset to default!');
+            });
+        }
+
+        // Function to reset layout to default
+        function resetLayout() {
+            const streetView = document.getElementById('street-view');
+            streetView.style.height = '55vh';
+            setTimeout(() => {
+                if (streetView && mainMap) {
+                    google.maps.event.trigger(streetView, 'resize');
+                    google.maps.event.trigger(mainMap, 'resize');
+                }
+            }, 100);
+            showToast('Layout reset to default!');
         }
 
         // Updated keyboard shortcuts to include filter shortcuts
