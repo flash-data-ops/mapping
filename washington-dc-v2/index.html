@@ -1067,6 +1067,36 @@
                 </h4>
                 <div id="geojson-list"></div>
             </div>
+            
+            <!-- GeoJSON Import Section -->
+            <div class="geojson-import-section" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+                <h4>
+                    <span>📥 Import GeoJSON</span>
+                    <button class="copy-button" onclick="clearImportedLines()" style="background: #f44336;">Clear</button>
+                </h4>
+                <div style="background: rgba(76, 175, 80, 0.1); padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 11px; color: #333;">
+                    <strong>📥 Import Feature:</strong> Paste GeoJSON to automatically draw lines on the map. 
+                    <br><strong>🔄 Live Updates:</strong> When you modify imported lines, the GeoJSON automatically updates in real-time (minified format).
+                    <br><strong>📋 Easy Copy:</strong> Use "Copy Edited" button or Shift+Ctrl+C to copy the minified edited GeoJSON.
+                </div>
+                <textarea id="geojson-input" placeholder='Paste GeoJSON here, e.g.:
+{
+  "coordinates": [
+    [[-76.992, 38.899], [-76.992, 38.900]],
+    [[-76.993, 38.901], [-76.993, 38.902]]
+  ],
+  "type": "MultiLineString"
+}' style="width: 100%; height: 120px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 11px; resize: vertical;"></textarea>
+                <div style="margin-top: 8px; display: flex; gap: 8px;">
+                    <button class="copy-button" onclick="importGeoJSON()" style="flex: 1;">Import Lines</button>
+                    <button class="copy-button" onclick="validateGeoJSON()" style="background: #2196F3;">Validate</button>
+                </div>
+                <div style="margin-top: 8px; display: flex; gap: 8px;">
+                    <button class="copy-button" onclick="centerMapToImportedLines()" style="background: #9C27B0; flex: 1;">Center to Lines</button>
+                    <button class="copy-button" onclick="copyEditedGeoJSON()" style="background: #4CAF50; flex: 1;">Copy Edited</button>
+                </div>
+                <div id="import-status" style="margin-top: 8px; font-size: 11px; padding: 6px; border-radius: 4px; display: none;"></div>
+            </div>
         </div>
 
         <!-- Custom Markers Section -->
@@ -1133,6 +1163,16 @@
                                 <span class="key modifier">Ctrl</span>
                                 <span class="key-separator">+</span>
                                 <span class="key">N</span>
+                            </div>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">Copy Edited GeoJSON (Minified)</span>
+                            <div class="shortcut-keys">
+                                <span class="key modifier">Shift</span>
+                                <span class="key-separator">+</span>
+                                <span class="key modifier">Ctrl</span>
+                                <span class="key-separator">+</span>
+                                <span class="key">C</span>
                             </div>
                         </div>
                     </div>
@@ -2521,7 +2561,14 @@
                 
                 // Final update
                 updateLineGeometry(feature);
-                updateGeoJSONDisplay();
+                
+                // Update appropriate GeoJSON display based on line type
+                if (feature.isImported) {
+                    updateImportedGeoJSONDisplay();
+                } else {
+                    updateGeoJSONDisplay();
+                }
+                
                 showToast('Line moved to new position!');
             });
         }
@@ -2706,7 +2753,14 @@
                 const index = feature.controlMarkers.indexOf(controlMarker);
                 feature.controlPoints[index] = controlMarker.getPosition();
                 updateLineGeometry(feature);
-                updateGeoJSONDisplay();
+                
+                // Update appropriate GeoJSON display based on line type
+                if (feature.isImported) {
+                    updateImportedGeoJSONDisplay();
+                } else {
+                    updateGeoJSONDisplay();
+                }
+                
                 showToast('Curve updated! All curve points saved in GeoJSON.');
             });
             
@@ -2729,7 +2783,13 @@
                 feature.controlPoints.splice(index, 1);
                 controlMarker.setMap(null);
                 updateLineGeometry(feature);
-                updateGeoJSONDisplay();
+                
+                // Update appropriate GeoJSON display based on line type
+                if (feature.isImported) {
+                    updateImportedGeoJSONDisplay();
+                } else {
+                    updateGeoJSONDisplay();
+                }
                 
                 if (feature.controlPoints.length === 0) {
                     showToast('Control point removed! Line is now straight with original coordinates.');
@@ -3131,6 +3191,364 @@
                 showToast('All GeoJSON copied as FeatureCollection!');
             }).catch(err => {
                 showToast('Failed to copy to clipboard', 'error');
+            });
+        }
+
+        // Variables to track imported lines
+        let importedLines = [];
+        let importedFeatureCounter = 0;
+
+        // Function to validate GeoJSON input
+        function validateGeoJSON() {
+            const input = document.getElementById('geojson-input').value.trim();
+            const statusDiv = document.getElementById('import-status');
+            
+            if (!input) {
+                showStatus('Please enter GeoJSON to validate', 'error');
+                return false;
+            }
+            
+            try {
+                const geojson = JSON.parse(input);
+                
+                // Check if it's a valid GeoJSON structure
+                if (!geojson.type || !geojson.coordinates) {
+                    showStatus('Invalid GeoJSON: Missing type or coordinates', 'error');
+                    return false;
+                }
+                
+                // Check supported types
+                if (geojson.type !== 'LineString' && geojson.type !== 'MultiLineString') {
+                    showStatus('Only LineString and MultiLineString are supported', 'error');
+                    return false;
+                }
+                
+                // Validate coordinates structure
+                if (geojson.type === 'LineString') {
+                    if (!Array.isArray(geojson.coordinates) || geojson.coordinates.length < 2) {
+                        showStatus('LineString must have at least 2 coordinate pairs', 'error');
+                        return false;
+                    }
+                } else if (geojson.type === 'MultiLineString') {
+                    if (!Array.isArray(geojson.coordinates) || geojson.coordinates.length === 0) {
+                        showStatus('MultiLineString must have at least 1 line', 'error');
+                        return false;
+                    }
+                    for (let i = 0; i < geojson.coordinates.length; i++) {
+                        if (!Array.isArray(geojson.coordinates[i]) || geojson.coordinates[i].length < 2) {
+                            showStatus(`Line ${i + 1} must have at least 2 coordinate pairs`, 'error');
+                            return false;
+                        }
+                    }
+                }
+                
+                showStatus(`✓ Valid ${geojson.type} with ${geojson.type === 'LineString' ? 1 : geojson.coordinates.length} line(s)`, 'success');
+                return true;
+                
+            } catch (error) {
+                showStatus('Invalid JSON format: ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        // Function to show status messages
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('import-status');
+            statusDiv.textContent = message;
+            statusDiv.style.display = 'block';
+            statusDiv.style.background = type === 'error' ? 'rgba(244, 67, 54, 0.1)' : 'rgba(76, 175, 80, 0.1)';
+            statusDiv.style.color = type === 'error' ? '#d32f2f' : '#2e7d32';
+            statusDiv.style.border = type === 'error' ? '1px solid #ffcdd2' : '1px solid #c8e6c9';
+            
+            // Hide status after 5 seconds
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Function to import GeoJSON and create lines
+        function importGeoJSON() {
+            if (!validateGeoJSON()) {
+                return;
+            }
+            
+            const input = document.getElementById('geojson-input').value.trim();
+            const geojson = JSON.parse(input);
+            
+            let linesToCreate = [];
+            
+            if (geojson.type === 'LineString') {
+                linesToCreate = [geojson.coordinates];
+            } else if (geojson.type === 'MultiLineString') {
+                linesToCreate = geojson.coordinates;
+            }
+            
+            // Clear existing imported lines
+            clearImportedLines();
+            
+            // Create lines from GeoJSON
+            linesToCreate.forEach((lineCoords, index) => {
+                createLineFromCoordinates(lineCoords, index);
+            });
+            
+            // Update displays
+            updateImportedGeoJSONDisplay();
+            
+            // Center map to show all imported lines
+            centerMapToImportedLines();
+            
+            showToast(`Imported ${linesToCreate.length} line(s) from GeoJSON!`);
+            showStatus(`Successfully imported ${linesToCreate.length} line(s)`, 'success');
+        }
+
+        // Function to create a line from coordinate array
+        function createLineFromCoordinates(coordinates, lineIndex) {
+            if (coordinates.length < 2) return;
+            
+            const startCoord = new google.maps.LatLng(coordinates[0][1], coordinates[0][0]);
+            const endCoord = new google.maps.LatLng(coordinates[1][1], coordinates[1][0]);
+            
+            // Create markers for endpoints
+            const startMarker = new google.maps.Marker({
+                position: startCoord,
+                map: mainMap,
+                draggable: true,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 6,
+                    fillColor: "#FF6B6B",
+                    fillOpacity: 0.9,
+                    strokeColor: "#ffffff",
+                    strokeWeight: 2
+                },
+                title: "Imported Line Endpoint"
+            });
+            
+            const endMarker = new google.maps.Marker({
+                position: endCoord,
+                map: mainMap,
+                draggable: true,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 6,
+                    fillColor: "#FF6B6B",
+                    fillOpacity: 0.9,
+                    strokeColor: "#ffffff",
+                    strokeWeight: 2
+                },
+                title: "Imported Line Endpoint"
+            });
+            
+            // Create polyline
+            const polyline = new google.maps.Polyline({
+                path: [startCoord, endCoord],
+                geodesic: true,
+                strokeColor: "#FF6B6B",
+                strokeOpacity: 1.0,
+                strokeWeight: 3,
+                map: mainMap,
+                icons: [
+                    {
+                        icon: {
+                            path: google.maps.SymbolPath.CIRCLE,
+                            scale: 4,
+                            fillColor: "#4CAF50",
+                            fillOpacity: 1,
+                            strokeColor: "#ffffff",
+                            strokeWeight: 2
+                        },
+                        offset: '0%'
+                    },
+                    {
+                        icon: {
+                            path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                            scale: 4,
+                            fillColor: "#f44336",
+                            fillOpacity: 1,
+                            strokeColor: "#ffffff",
+                            strokeWeight: 2
+                        },
+                        offset: '100%'
+                    }
+                ]
+            });
+            
+            // Calculate distance and create label
+            const distance = google.maps.geometry.spherical.computeDistanceBetween(startCoord, endCoord);
+            const midpoint = google.maps.geometry.spherical.interpolate(startCoord, endCoord, 0.5);
+            const labelText = createEnhancedLabelText(distance, 'line', lineIndex + 1);
+            const measurementLabel = createMeasurementLabel(midpoint, labelText, 'default');
+            
+            // Create feature object
+            const feature = {
+                type: 'imported-line',
+                drawingType: 'line',
+                markers: [startMarker, endMarker],
+                polyline: polyline,
+                geojson: {
+                    coordinates: coordinates.map(coord => [coord[0], coord[1]]),
+                    originalEndpoints: [[startCoord.lng(), startCoord.lat()], [endCoord.lng(), endCoord.lat()]],
+                    type: "LineString"
+                },
+                measurementLabel: measurementLabel,
+                index: importedFeatureCounter++,
+                isImported: true,
+                originalLineIndex: lineIndex
+            };
+            
+            // Store in imported lines array
+            importedLines.push(feature);
+            
+            // Do NOT add to drawnFeatures - imported lines are separate from drawn lines
+            
+            // Setup drag listeners
+            setupImportedLineDragListeners(feature);
+            setupLineDragHandler(feature);
+            
+            // Add double-click listener for control points
+            polyline.addListener('dblclick', (event) => {
+                addControlPoint(feature, event.latLng);
+            });
+            
+            // Handle more than 2 coordinates by creating control points
+            if (coordinates.length > 2) {
+                for (let i = 1; i < coordinates.length - 1; i++) {
+                    const controlPos = new google.maps.LatLng(coordinates[i][1], coordinates[i][0]);
+                    addControlPoint(feature, controlPos);
+                }
+            }
+        }
+
+        // Function to setup drag listeners for imported lines
+        function setupImportedLineDragListeners(feature) {
+            feature.markers.forEach((marker, markerIndex) => {
+                marker.addListener('drag', () => {
+                    updateLineGeometry(feature);
+                    updateImportedGeoJSONDisplay();
+                });
+                
+                marker.addListener('dragend', () => {
+                    updateLineGeometry(feature);
+                    updateImportedGeoJSONDisplay();
+                    showToast('Imported line updated!');
+                });
+            });
+        }
+
+        // Function to update the imported GeoJSON display
+        function updateImportedGeoJSONDisplay() {
+            if (importedLines.length === 0) return;
+            
+            // Create MultiLineString from all imported lines
+            const multiLineGeoJSON = {
+                coordinates: importedLines.map(line => line.geojson.coordinates),
+                type: "MultiLineString"
+            };
+            
+            // Update the input textarea with minified JSON (no formatting)
+            const textarea = document.getElementById('geojson-input');
+            textarea.value = JSON.stringify(multiLineGeoJSON);
+        }
+
+        // Function to clear imported lines
+        function clearImportedLines() {
+            importedLines.forEach(line => {
+                // Remove from map
+                line.markers.forEach(marker => marker.setMap(null));
+                line.polyline.setMap(null);
+                line.measurementLabel.setMap(null);
+                
+                // Remove control points if any
+                if (line.controlMarkers) {
+                    line.controlMarkers.forEach(marker => marker.setMap(null));
+                }
+                
+                // Note: Do NOT remove from drawnFeatures since imported lines are not added there
+            });
+            
+            importedLines = [];
+            importedFeatureCounter = 0;
+            
+            // Clear input
+            document.getElementById('geojson-input').value = '';
+            
+            // No need to update Generated GeoJSON since imported lines are separate
+            showToast('Imported lines cleared!');
+            showStatus('All imported lines cleared', 'success');
+        }
+
+        // Function to center map to show all imported lines
+        function centerMapToImportedLines() {
+            if (importedLines.length === 0) {
+                showToast('No imported lines to center to', 'error');
+                return;
+            }
+            
+            // Create bounds object
+            const bounds = new google.maps.LatLngBounds();
+            
+            // Extend bounds to include all imported line points
+            importedLines.forEach(line => {
+                // Add all endpoints
+                line.markers.forEach(marker => {
+                    bounds.extend(marker.getPosition());
+                });
+                
+                // Add all control points if they exist
+                if (line.controlPoints) {
+                    line.controlPoints.forEach(controlPoint => {
+                        bounds.extend(controlPoint);
+                    });
+                }
+                
+                // If the line has intermediate coordinates (for curved lines), include them too
+                if (line.geojson.coordinates.length > 2) {
+                    line.geojson.coordinates.forEach(coord => {
+                        bounds.extend(new google.maps.LatLng(coord[1], coord[0]));
+                    });
+                }
+            });
+            
+            // Fit the map to the bounds with some padding
+            mainMap.fitBounds(bounds, {
+                top: 50,
+                right: 50,
+                bottom: 50,
+                left: 50
+            });
+            
+            // Optional: Set a maximum zoom level to prevent zooming in too much for very small areas
+            google.maps.event.addListenerOnce(mainMap, 'bounds_changed', () => {
+                const maxZoom = 18; // Adjust as needed
+                if (mainMap.getZoom() > maxZoom) {
+                    mainMap.setZoom(maxZoom);
+                }
+            });
+            
+            showToast('Map centered to imported lines!');
+        }
+
+        // Function to copy the current edited GeoJSON in minified format
+        function copyEditedGeoJSON() {
+            if (importedLines.length === 0) {
+                showToast('No imported lines to copy', 'error');
+                return;
+            }
+            
+            // Create MultiLineString from current imported lines state
+            const multiLineGeoJSON = {
+                coordinates: importedLines.map(line => line.geojson.coordinates),
+                type: "MultiLineString"
+            };
+            
+            // Copy minified JSON to clipboard
+            const minifiedGeoJSON = JSON.stringify(multiLineGeoJSON);
+            navigator.clipboard.writeText(minifiedGeoJSON).then(() => {
+                showToast('Minified edited GeoJSON copied to clipboard!');
+                showStatus('✓ Minified GeoJSON copied successfully', 'success');
+            }).catch(err => {
+                showToast('Failed to copy to clipboard', 'error');
+                showStatus('✗ Copy failed: ' + err.message, 'error');
             });
         }
 
@@ -4042,6 +4460,13 @@
                     case 'n':
                         e.preventDefault();
                         toggleMapType();
+                        break;
+                    case 'c':
+                        // Shift+Ctrl+C for copying edited GeoJSON
+                        if (e.shiftKey) {
+                            e.preventDefault();
+                            copyEditedGeoJSON();
+                        }
                         break;
                     case 'Enter':
                         // Ctrl+Enter applies filter if filter input is focused
